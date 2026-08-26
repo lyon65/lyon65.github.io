@@ -1,0 +1,3508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>互动实验室 · Playground</title>
+<style>
+/* ============================================================
+   互动实验室 — 一个藏满彩蛋的网页 (桌面 + 移动端全适配)
+   灵感: neal.fun (极简实验感) / make me pulse (极致交互)
+   ============================================================ */
+
+/* ---------- 设计令牌 ---------- */
+:root {
+  --bg:        #0a0a0f;
+  --bg-soft:   #12121a;
+  --fg:        #f0f0f5;
+  --fg-dim:    #8888a0;
+  --accent:    #7c5cff;
+  --accent-2:  #00e5ff;
+  --accent-3:  #ff5c8a;
+  --card:      rgba(255,255,255,0.04);
+  --border:    rgba(255,255,255,0.08);
+  --radius:    20px;
+  --font:      'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono:      'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+body.light {
+  --bg:        #f5f5f0;  --bg-soft:   #ffffff;
+  --fg:        #1a1a2e;  --fg-dim:    #666680;
+  --card:      rgba(0,0,0,0.03);  --border:    rgba(0,0,0,0.08);
+}
+
+/* ---------- 基础 ---------- */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font); background: var(--bg); color: var(--fg);
+  overflow-x: hidden; min-height: 100vh;
+  transition: background .6s ease, color .6s ease;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+a, button { -webkit-tap-highlight-color: transparent; }
+
+@media (hover: hover) and (pointer: fine) {
+  body, a, button { cursor: none; }
+}
+
+/* ---------- 自定义光标 ---------- */
+.cursor-dot {
+  position: fixed; top:0; left:0; width:8px; height:8px;
+  background: var(--accent-2); border-radius:50%;
+  pointer-events:none; z-index:99999;
+  transform: translate(-50%,-50%);
+  transition: width .2s, height .2s, background .2s, opacity .2s;
+  mix-blend-mode: difference; opacity:0;
+}
+.cursor-ring {
+  position: fixed; top:0; left:0; width:36px; height:36px;
+  border:1.5px solid var(--accent); border-radius:50%;
+  pointer-events:none; z-index:99998;
+  transform: translate(-50%,-50%);
+  transition: transform .12s ease-out, width .25s, height .25s, border-color .25s, opacity .2s;
+  opacity:0;
+}
+body.cursor-active .cursor-dot, body.cursor-active .cursor-ring { opacity:1; }
+body.hover .cursor-ring { width:60px; height:60px; border-color:var(--accent-3); }
+body.click .cursor-ring { width:20px; height:20px; background:rgba(124,92,255,.3); }
+
+/* ---------- 背景 ---------- */
+.blob-bg { position:fixed; inset:0; z-index:-2; overflow:hidden; background:var(--bg); }
+.blob { position:absolute; border-radius:50%; filter:blur(80px); opacity:.4; transition:transform .3s ease-out; }
+.blob-1 { width:500px; height:500px; background:var(--accent); top:-10%; left:-10%; }
+.blob-2 { width:400px; height:400px; background:var(--accent-2); bottom:-10%; right:-5%; }
+.blob-3 { width:350px; height:350px; background:var(--accent-3); top:40%; left:50%; }
+.noise {
+  position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- 导航 ---------- */
+nav {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:16px 20px; backdrop-filter:blur(20px);
+  background:rgba(10,10,15,.5); border-bottom:1px solid var(--border);
+}
+@media (min-width:768px) { nav { padding:20px 40px; } }
+.logo { font-weight:800; font-size:1.1rem; letter-spacing:-.5px; display:flex; align-items:center; gap:8px; }
+.logo-dot { width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.3);} }
+.nav-links { display:none; gap:24px; }
+@media (min-width:768px) { .nav-links { display:flex; } }
+.nav-links a { color:var(--fg-dim); text-decoration:none; font-size:.9rem; transition:color .2s; position:relative; }
+.nav-links a:hover { color:var(--fg); }
+.nav-links a::after { content:''; position:absolute; bottom:-4px; left:0; width:0; height:2px; background:var(--accent); transition:width .3s; }
+.nav-links a:hover::after { width:100%; }
+
+/* ---------- 通用区块 ---------- */
+section { padding:60px 16px; max-width:1200px; margin:0 auto; }
+@media (min-width:640px) { section { padding:80px 24px; } }
+@media (min-width:1024px) { section { padding:100px 40px; } }
+.section-label { font-family:var(--mono); font-size:.75rem; color:var(--accent-2); letter-spacing:2px; text-transform:uppercase; margin-bottom:12px; }
+.section-title { font-size:clamp(1.8rem,5vw,3.5rem); font-weight:800; letter-spacing:-1px; line-height:1.1; margin-bottom:16px; }
+.section-desc { color:var(--fg-dim); font-size:1rem; max-width:600px; line-height:1.7; }
+
+/* ---------- Hero ---------- */
+.hero { min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; padding-top:100px; position:relative; }
+.hero h1 { font-size:clamp(2.5rem,9vw,7rem); font-weight:900; letter-spacing:-2px; line-height:.95; margin-bottom:24px; }
+.hero h1 .grad {
+  background:linear-gradient(135deg,var(--accent),var(--accent-2),var(--accent-3));
+  background-size:200% 200%; -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; animation:gradShift 4s ease infinite;
+}
+@keyframes gradShift { 0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;} }
+.hero p { font-size:1.05rem; color:var(--fg-dim); max-width:500px; line-height:1.7; margin-bottom:32px; }
+.hero-cta { display:flex; gap:12px; flex-wrap:wrap; }
+.btn {
+  padding:14px 28px; border-radius:50px; font-size:.9rem; font-weight:600;
+  border:none; transition:all .3s cubic-bezier(.34,1.56,.64,1); position:relative; overflow:hidden;
+}
+.btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; box-shadow:0 8px 30px rgba(124,92,255,.3); }
+.btn-primary:active { transform:scale(.96); }
+.btn-ghost { background:var(--card); color:var(--fg); border:1px solid var(--border); backdrop-filter:blur(10px); }
+.btn-ghost:active { transform:scale(.96); border-color:var(--accent); }
+
+.scroll-hint {
+  position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
+  font-family:var(--mono); font-size:.7rem; color:var(--fg-dim);
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  animation:bob 2s ease-in-out infinite;
+}
+@keyframes bob { 0%,100%{transform:translateX(-50%) translateY(0);} 50%{transform:translateX(-50%) translateY(8px);} }
+.scroll-hint .line { width:1px; height:30px; background:linear-gradient(var(--fg-dim),transparent); }
+
+/* ---------- 卡片网格 ---------- */
+.grid { display:grid; grid-template-columns:1fr; gap:14px; margin-top:32px; }
+@media (min-width:640px) { .grid { grid-template-columns:repeat(2,1fr); gap:18px; margin-top:40px; } }
+@media (min-width:1024px) { .grid { grid-template-columns:repeat(3,1fr); gap:22px; margin-top:48px; } }
+.card {
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:24px 20px; backdrop-filter:blur(20px);
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1), border-color .3s;
+  transform-style:preserve-3d; position:relative; overflow:hidden;
+  min-height:200px; display:flex; flex-direction:column; justify-content:space-between;
+  touch-action:pan-y;
+}
+@media (min-width:640px) { .card { padding:28px; min-height:220px; } }
+.card:hover { border-color:var(--accent); }
+.card-icon { font-size:2.2rem; margin-bottom:12px; }
+.card h3 { font-size:1.15rem; font-weight:700; margin-bottom:6px; line-height:1.3; }
+.card p { color:var(--fg-dim); font-size:.82rem; line-height:1.55; }
+.card-action {
+  margin-top:14px; padding:9px 18px; border-radius:50px;
+  background:var(--bg-soft); border:1px solid var(--border); color:var(--fg);
+  font-size:.82rem; font-weight:600; transition:all .2s; width:fit-content;
+  cursor:pointer;
+}
+.card-action:hover { border-color:var(--accent); color:var(--accent); }
+.card-action:active { background:var(--accent); border-color:var(--accent); color:#fff; transform:scale(.96); }
+#diceBtn, #coinBtn { display:block; margin:16px auto 0; }
+
+/* ===== 像素画板 ===== */
+.pixel-palette { display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap; }
+.pixel-swatch { width:22px; height:22px; border-radius:5px; cursor:pointer; border:2px solid transparent; transition:transform .15s, border-color .15s; }
+.pixel-swatch.active { border-color:#fff; transform:scale(1.15); box-shadow:0 0 8px rgba(255,255,255,.4); }
+.pixel-grid { display:grid; grid-template-columns:repeat(16,1fr); gap:1px; background:var(--border); border-radius:6px; overflow:hidden; aspect-ratio:1; margin-bottom:10px; }
+.pixel-cell { background:var(--bg); transition:background .05s; cursor:crosshair; }
+.pixel-cell:hover { opacity:.8; }
+
+/* ===== 重力沙盒 ===== */
+.gravity-canvas { width:100%; height:180px; border-radius:10px; background:linear-gradient(180deg,#0a0a1a,#1a1a2e); display:block; margin-bottom:10px; touch-action:none; cursor:crosshair; }
+
+/* ===== 二进制时钟 ===== */
+.binary-clock { display:flex; gap:8px; justify-content:center; align-items:flex-end; padding:10px 0; }
+.binary-col { display:flex; flex-direction:column; gap:5px; align-items:center; }
+.binary-col .binary-label { font-family:var(--mono); font-size:.65rem; color:var(--fg-dim); margin-top:5px; }
+.binary-bit { width:18px; height:18px; border-radius:50%; background:var(--bg-soft); border:1px solid var(--border); transition:all .2s; }
+.binary-bit.on { background:var(--accent); box-shadow:0 0 10px var(--accent), 0 0 20px rgba(0,229,255,.3); border-color:var(--accent); }
+.binary-sep { display:flex; flex-direction:column; justify-content:center; gap:8px; padding-bottom:20px; }
+.binary-sep span { width:5px; height:5px; border-radius:50%; background:var(--accent-3); }
+
+/* ===== 节拍音序器 ===== */
+.seq-grid { display:grid; grid-template-columns:repeat(16,1fr); gap:3px; margin-bottom:10px; }
+.seq-cell { aspect-ratio:1; border-radius:3px; background:var(--bg-soft); border:1px solid var(--border); cursor:pointer; transition:all .1s; }
+.seq-cell.on { background:var(--accent); box-shadow:0 0 6px var(--accent); border-color:var(--accent); }
+.seq-cell.current { outline:2px solid var(--accent-3); outline-offset:1px; }
+.seq-cell.on.current { background:var(--accent-3); box-shadow:0 0 10px var(--accent-3); }
+.seq-controls { display:flex; gap:8px; }
+.seq-controls .card-action { margin-top:0; }
+
+.counter-display {
+  font-family:var(--mono); font-size:2.5rem; font-weight:800;
+  background:linear-gradient(135deg,var(--accent-2),var(--accent));
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+}
+
+.eight-ball {
+  width:90px; height:90px; border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,#333,#000);
+  display:flex; align-items:center; justify-content:center; margin:0 auto 16px;
+  box-shadow:0 10px 40px rgba(0,0,0,.5), inset -5px -5px 20px rgba(0,0,0,.8);
+  transition:transform .3s; touch-action:manipulation;
+}
+.eight-ball.shake { animation:shake .5s ease; }
+@keyframes shake {
+  0%,100%{transform:rotate(0);} 20%{transform:rotate(-15deg) translateX(-5px);}
+  40%{transform:rotate(15deg) translateX(5px);} 60%{transform:rotate(-10deg);} 80%{transform:rotate(10deg);}
+}
+.eight-ball .window {
+  width:40px; height:40px; border-radius:50%;
+  background:radial-gradient(circle at 40% 40%,#1a1a4e,#000033);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:.6rem; color:#4a9eff; text-align:center; padding:4px; line-height:1.2;
+}
+
+.palette { display:flex; gap:4px; height:50px; border-radius:10px; overflow:hidden; margin-bottom:16px; }
+.palette div { flex:1; transition:transform .2s; }
+.palette div:active { transform:scaleY(1.15); }
+
+/* ---------- 骰子 ---------- */
+.dice { font-size:4rem; line-height:1; margin-bottom:16px; transition:transform .3s; display:inline-block; }
+.dice.rolling { animation:diceRoll .6s ease; }
+@keyframes diceRoll { 0%{transform:rotate(0) scale(1);} 25%{transform:rotate(180deg) scale(1.2);} 50%{transform:rotate(360deg) scale(.9);} 75%{transform:rotate(540deg) scale(1.1);} 100%{transform:rotate(720deg) scale(1);} }
+
+/* ---------- 硬币 ---------- */
+.coin-wrap { perspective: 600px; display:inline-block; }
+.coin { width:70px; height:70px; margin:0 auto 16px; position:relative; transform-style:preserve-3d; transition:transform .1s; }
+.coin.flipping { animation:coinFlip 1s ease-out; }
+@keyframes coinFlip { 0%{transform:rotateY(0);} 100%{transform:rotateY(1800deg);} }
+.coin-face { position:absolute; width:100%; height:100%; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:800; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+.coin-head { background:linear-gradient(135deg,#ffd700,#ffaa00); color:#5a3d00; box-shadow:0 0 20px rgba(255,180,0,.5); }
+.coin-tail { background:linear-gradient(135deg,#c0c0c0,#888); color:#333; transform:rotateY(180deg); box-shadow:0 0 20px rgba(160,160,160,.5); }
+
+/* ---------- 反应速度测试 ---------- */
+.reaction-box { width:100%; height:100px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:700; cursor:pointer; transition:background .15s, color .15s; background:var(--bg-soft); border:1px solid var(--border); color:var(--fg-dim); user-select:none; }
+.reaction-box.waiting { background:#e74c3c; color:#fff; border-color:#e74c3c; }
+.reaction-box.ready { background:#2ecc71; color:#fff; border-color:#2ecc71; }
+.reaction-box.result { background:var(--bg-soft); color:var(--fg); }
+.reaction-box.tooSoon { background:#e67e22; color:#fff; border-color:#e67e22; }
+
+/* ---------- 石头剪刀布 ---------- */
+.rps-result { text-align:center; font-size:1rem; font-weight:600; margin-bottom:12px; min-height:24px; color:var(--fg); }
+.rps-buttons { display:flex; gap:10px; justify-content:center; margin-bottom:12px; }
+.rps-btn { font-size:1.8rem; width:56px; height:56px; border-radius:12px; border:1px solid var(--border); background:var(--bg-soft); cursor:pointer; transition:transform .15s, border-color .15s, background .15s; display:flex; align-items:center; justify-content:center; }
+.rps-btn:hover { border-color:var(--accent); transform:scale(1.08); }
+.rps-btn:active { transform:scale(.95); }
+.rps-btn.win { background:rgba(46,204,113,.2); border-color:#2ecc71; }
+.rps-btn.lose { background:rgba(231,76,60,.2); border-color:#e74c3c; }
+.rps-btn.draw { background:rgba(241,196,15,.2); border-color:#f1c40f; }
+.rps-score { text-align:center; font-family:var(--mono); font-size:.85rem; color:var(--fg-dim); }
+
+/* ---------- 随机决策器 ---------- */
+.decision-input { width:100%; padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-soft); color:var(--fg); font-size:.9rem; margin-bottom:12px; outline:none; transition:border-color .15s; box-sizing:border-box; }
+.decision-input:focus { border-color:var(--accent); }
+.decision-result { text-align:center; font-size:1.3rem; font-weight:700; margin-bottom:12px; min-height:32px; color:var(--accent); transition:transform .2s; }
+.decision-result.picking { animation:decisionPulse .1s infinite alternate; }
+@keyframes decisionPulse { from{transform:scale(1);} to{transform:scale(1.05);} }
+
+/* ===== 🤥 测谎仪 ===== */
+.lie-detector { text-align:center; }
+.lie-scan { width:100%; height:8px; border-radius:4px; background:var(--bg-soft); border:1px solid var(--border); overflow:hidden; margin:12px 0; }
+.lie-scan-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--accent-2),var(--accent),var(--accent-3)); transition:width .05s linear; border-radius:4px; }
+.lie-result { font-size:1.4rem; font-weight:800; min-height:32px; margin:8px 0; transition:all .3s; }
+.lie-result.truth { color:#00e676; text-shadow:0 0 12px rgba(0,230,118,.5); }
+.lie-result.lie { color:#ff5252; text-shadow:0 0 12px rgba(255,82,82,.5); }
+.lie-result.scanning { color:var(--accent-2); animation:lieBlink .3s infinite alternate; }
+@keyframes lieBlink { from{opacity:.4;} to{opacity:1;} }
+.lie-percent { font-family:var(--mono); font-size:.8rem; color:var(--fg-dim); }
+
+/* ===== 🪤 按了就后悔 ===== */
+.regret-btn-wrap { text-align:center; min-height:60px; position:relative; }
+.regret-btn { padding:12px 28px; border-radius:50px; font-size:1rem; font-weight:700; cursor:pointer; transition:all .2s; border:2px solid var(--accent); background:var(--accent); color:#fff; position:relative; }
+.regret-btn:hover { transform:scale(1.05); box-shadow:0 0 20px rgba(124,92,255,.5); }
+.regret-msg { font-size:.85rem; color:var(--fg-dim); margin-top:10px; min-height:20px; font-style:italic; }
+
+/* ===== 🦖 谷歌小恐龙 ===== */
+.dino-wrap { position:relative; margin:12px 0; }
+#dinoCanvas { width:100%; height:110px; background:var(--bg-soft); border:1px solid var(--border); border-radius:12px; display:block; touch-action:none; }
+@media (min-width:640px) { #dinoCanvas { height:120px; } }
+.dino-info { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-family:var(--mono); font-size:.75rem; color:var(--fg-dim); }
+.dino-score { color:var(--accent); font-weight:700; }
+.dino-hint { text-align:center; font-size:.75rem; color:var(--fg-dim); margin-top:6px; }
+
+/* ===== ⭕ 井字棋 ===== */
+.ttt-board { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin:10px auto; max-width:200px; }
+@media (min-width:640px) { .ttt-board { gap:6px; max-width:220px; margin:12px auto; } }
+.ttt-cell { aspect-ratio:1; background:var(--bg-soft); border:1px solid var(--border); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:800; cursor:pointer; transition:all .15s; user-select:none; }
+.ttt-cell:hover:not(.taken) { border-color:var(--accent); background:rgba(124,92,255,.1); }
+.ttt-cell.x { color:var(--accent-2); }
+.ttt-cell.o { color:var(--accent-3); }
+.ttt-cell.win { background:rgba(0,230,118,.15); border-color:#00e676; animation:tttWin .5s ease; }
+@keyframes tttWin { 0%,100%{transform:scale(1);} 50%{transform:scale(1.1);} }
+.ttt-status { text-align:center; font-size:.9rem; font-weight:600; margin:8px 0; min-height:22px; }
+.ttt-scores { display:flex; justify-content:center; gap:20px; font-family:var(--mono); font-size:.75rem; color:var(--fg-dim); margin-bottom:8px; }
+
+/* ===== 💣 拆弹专家 ===== */
+.bomb-device {
+  position:relative;
+  background:radial-gradient(ellipse at 50% 30%,#1a1a1a,#0a0a0a 70%,#050505);
+  border-radius:14px;
+  padding:14px 8px 10px;
+  margin:12px 0;
+  overflow:hidden;
+  border:1px solid #2a2a2a;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.6),inset 0 -1px 0 rgba(255,255,255,.03);
+}
+@media (min-width:400px) { .bomb-device { padding:16px 12px 12px; } }
+/* TNT 炸药捆 */
+.tnt-bundle {
+  position:relative;
+  display:flex;
+  justify-content:center;
+  gap:1px;
+  margin-bottom:-26px;
+  z-index:1;
+}
+.tnt-stick {
+  width:28px;
+  height:120px;
+  background:linear-gradient(90deg,#9a7748,#c9a878 25%,#e0c99a 50%,#c9a878 75%,#9a7748);
+  border-radius:2px;
+  border-top:5px solid #b8956a;
+  position:relative;
+  overflow:hidden;
+  box-shadow:inset -2px 0 4px rgba(0,0,0,.2),inset 2px 0 4px rgba(255,255,255,.1);
+}
+.tnt-stick::before {
+  content:'☠';
+  position:absolute;
+  top:18px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:1.2rem;
+  color:#1a1a1a;
+  z-index:2;
+  text-shadow:0 1px 1px rgba(0,0,0,.3);
+}
+.tnt-stick::after {
+  content:'TNT';
+  position:absolute;
+  bottom:16px;
+  left:50%;
+  transform:translateX(-50%) rotate(-90deg);
+  font-size:.65rem;
+  font-weight:900;
+  color:#1a1a1a;
+  letter-spacing:2px;
+  z-index:2;
+}
+.tnt-band {
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  width:115px;
+  height:11px;
+  background:linear-gradient(180deg,#333,#1a1a1a 50%,#0d0d0d);
+  z-index:3;
+  box-shadow:0 1px 3px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08);
+}
+.tnt-band.top { top:44px; }
+.tnt-band.bottom { bottom:8px; }
+/* 电子定时器面板 */
+.timer-panel {
+  position:relative;
+  z-index:4;
+  background:linear-gradient(180deg,#404040,#2a2a2a 40%,#1a1a1a);
+  border:2px solid #4a4a4a;
+  border-radius:8px;
+  padding:12px 10px 10px;
+  margin:0 auto;
+  max-width:180px;
+  box-shadow:0 6px 20px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.12),inset 0 -2px 4px rgba(0,0,0,.4);
+}
+/* 四角螺丝 */
+.timer-screw {
+  position:absolute;
+  width:8px; height:8px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#bbb,#777 50%,#555);
+  box-shadow:0 1px 2px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.3);
+  z-index:6;
+}
+.timer-screw::after {
+  content:'';
+  position:absolute;
+  top:50%; left:15%; right:15%;
+  height:1px;
+  background:#444;
+  transform:translateY(-50%);
+}
+.timer-screw.tl { top:4px; left:4px; }
+.timer-screw.tr { top:4px; right:4px; }
+.timer-screw.bl { bottom:4px; left:4px; }
+.timer-screw.br { bottom:4px; right:4px; }
+/* 金属接线柱 */
+.timer-terminal {
+  position:absolute;
+  top:52%;
+  width:7px;
+  height:13px;
+  background:linear-gradient(90deg,#b8956a,#e8d5a3,#b8956a);
+  border-radius:2px;
+  transform:translateY(-50%);
+  z-index:5;
+  box-shadow:0 0 4px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.3);
+}
+.timer-terminal.left { left:-5px; }
+.timer-terminal.right { right:-5px; }
+.timer-lights {
+  display:flex;
+  justify-content:center;
+  gap:5px;
+  margin-bottom:7px;
+}
+.timer-lights span {
+  width:7px; height:7px;
+  border-radius:50%;
+  background:#4a0000;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.6);
+  transition:all .2s;
+}
+.timer-lights span.on {
+  background:#ff2222;
+  box-shadow:0 0 8px #ff2222,0 0 4px #ff4444,inset 0 1px 2px rgba(255,255,255,.4);
+}
+.timer-start {
+  display:block;
+  width:100%;
+  padding:8px;
+  background:linear-gradient(180deg,#ff5555 0%,#dd2222 45%,#bb0000 55%,#990000 100%);
+  border:1px solid #770000;
+  border-radius:6px;
+  color:#fff;
+  font-weight:800;
+  font-size:.95rem;
+  cursor:pointer;
+  margin-bottom:8px;
+  text-shadow:0 1px 2px rgba(0,0,0,.6);
+  box-shadow:0 3px 6px rgba(150,0,0,.5),inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.3);
+  transition:transform .1s,box-shadow .1s;
+  letter-spacing:1px;
+}
+.timer-start:active { transform:translateY(1px); box-shadow:0 1px 3px rgba(150,0,0,.5),inset 0 1px 0 rgba(255,255,255,.35); }
+.timer-start:disabled { opacity:.4; cursor:not-allowed; }
+.timer-display {
+  display:flex;align-items:center;justify-content:center;
+  gap:2px;
+  background:linear-gradient(180deg,#0a0a0a,#050505);
+  border:2px solid #222;
+  border-radius:5px;
+  padding:8px 10px;
+  margin-bottom:8px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.8),inset 0 -1px 0 rgba(255,255,255,.05);
+}
+.seg-digit { position:relative; width:16px; height:30px; }
+.seg {
+  position:absolute; background:#2a0000;
+  transition:background .1s,box-shadow .1s;
+}
+.seg.on {
+  background:#ff3333;
+  box-shadow:0 0 6px #ff3333,0 0 3px #ff5555;
+}
+.seg.a { top:0; left:2px; right:2px; height:3px; border-radius:1px; }
+.seg.b { top:3px; right:0; width:3px; height:12px; border-radius:1px; }
+.seg.c { bottom:3px; right:0; width:3px; height:12px; border-radius:1px; }
+.seg.d { bottom:0; left:2px; right:2px; height:3px; border-radius:1px; }
+.seg.e { bottom:3px; left:0; width:3px; height:12px; border-radius:1px; }
+.seg.f { top:3px; left:0; width:3px; height:12px; border-radius:1px; }
+.seg.g { top:50%; left:2px; right:2px; height:3px; transform:translateY(-50%); border-radius:1px; }
+.seg-colon {
+  color:#ff3333; font-size:1.1rem; font-weight:900;
+  text-shadow:0 0 8px #ff3333,0 0 4px #ff5555;
+  animation:colonBlink 1s steps(2) infinite;
+  padding:0 1px;
+}
+@keyframes colonBlink { 0%{opacity:1;} 50%{opacity:.25;} }
+.timer-display.urgent .seg.on {
+  background:#ff8800;
+  box-shadow:0 0 10px #ff8800,0 0 5px #ffaa00;
+  animation:segFlash .3s infinite alternate;
+}
+.timer-display.urgent .seg-colon { color:#ff8800; text-shadow:0 0 10px #ff8800; }
+@keyframes segFlash { from{opacity:1;} to{opacity:.5;} }
+.timer-controls {
+  display:flex;
+  gap:7px;
+  margin-bottom:6px;
+}
+.timer-ctrl {
+  flex:1;
+  padding:6px;
+  background:linear-gradient(180deg,#55dd55 0%,#33bb33 45%,#229922 55%,#1a771a 100%);
+  border:1px solid #145514;
+  border-radius:6px;
+  color:#fff;
+  font-weight:800;
+  font-size:1.05rem;
+  cursor:pointer;
+  text-shadow:0 1px 2px rgba(0,0,0,.5);
+  box-shadow:0 2px 5px rgba(30,120,30,.4),inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 3px rgba(0,0,0,.25);
+  transition:transform .1s,box-shadow .1s;
+}
+.timer-ctrl:active { transform:translateY(1px); box-shadow:0 1px 2px rgba(30,120,30,.4),inset 0 1px 0 rgba(255,255,255,.35); }
+.timer-ctrl:disabled { opacity:.35; cursor:not-allowed; }
+.timer-label {
+  text-align:center;
+  font-size:.5rem;
+  color:#888;
+  font-family:monospace;
+  letter-spacing:1.5px;
+  text-shadow:0 1px 1px rgba(0,0,0,.5);
+}
+
+/* 红蓝螺旋线 */
+.bomb-wires {
+  position:absolute;
+  top:40px;
+  left:50%;
+  transform:translateX(-50%);
+  width:200px;
+  height:175px;
+  z-index:3;
+  pointer-events:none;
+  display:flex;
+  justify-content:space-between;
+}
+@media (min-width:400px) { .bomb-wires { width:220px; } }
+.wire-svg {
+  width:58px;
+  height:170px;
+  cursor:pointer;
+  pointer-events:auto;
+  transition:all .2s;
+  overflow:visible;
+}
+.wire-svg.red { filter:drop-shadow(0 0 6px rgba(255,51,51,.5)); }
+.wire-svg.blue { filter:drop-shadow(0 0 6px rgba(51,119,255,.5)); }
+.wire-svg:hover:not(.cut):not(.disabled) { transform:scale(1.08); }
+.wire-svg.cut { opacity:.2; }
+.wire-svg.disabled { cursor:not-allowed; opacity:.35; }
+/* 剪断动画 */
+.wire-svg.cutting {
+  transform-origin:50% 58%;
+  animation:wireSnip .65s cubic-bezier(.25,.46,.45,.94) forwards;
+  pointer-events:none;
+}
+@keyframes wireSnip {
+  0%{transform:rotate(0) translateY(0);opacity:1;}
+  5%{transform:rotate(-5deg) translateY(-4px);}
+  11%{transform:rotate(5deg) translateY(3px);}
+  17%{transform:rotate(-4deg);}
+  23%{transform:rotate(3deg);}
+  29%{transform:rotate(-2deg);}
+  35%{transform:rotate(1deg);}
+  42%{transform:rotate(0) translateY(0);opacity:1;}
+  100%{transform:rotate(28deg) translateY(130px);opacity:0;}
+}
+/* 剪断火花 */
+.cut-spark {
+  position:absolute;
+  width:50px;height:50px;
+  pointer-events:none;
+  z-index:20;
+  transform:translate(-50%,-50%);
+}
+.cut-spark::before {
+  content:'';
+  position:absolute;
+  top:50%;left:0;right:0;
+  height:3px;
+  background:linear-gradient(90deg,transparent,#fff,#ffee88,#fff,transparent);
+  transform:translateY(-50%) scaleX(0);
+  animation:sparkFlash .4s ease-out forwards;
+  border-radius:2px;
+}
+.cut-spark::after {
+  content:'';
+  position:absolute;
+  top:50%;left:50%;
+  width:10px;height:10px;
+  border-radius:50%;
+  background:radial-gradient(circle,#fff,#ffee88 40%,transparent 70%);
+  transform:translate(-50%,-50%) scale(0);
+  animation:sparkBurst .5s ease-out forwards;
+}
+@keyframes sparkFlash {
+  0%{transform:translateY(-50%) scaleX(0);opacity:1;}
+  25%{transform:translateY(-50%) scaleX(1);opacity:1;}
+  100%{transform:translateY(-50%) scaleX(1.3);opacity:0;}
+}
+@keyframes sparkBurst {
+  0%{transform:translate(-50%,-50%) scale(0);opacity:1;}
+  35%{transform:translate(-50%,-50%) scale(3.5);opacity:.9;}
+  100%{transform:translate(-50%,-50%) scale(6);opacity:0;}
+}
+/* 结果 */
+.bomb-result {
+  text-align:center;
+  font-size:.9rem;
+  font-weight:700;
+  min-height:24px;
+  margin-top:10px;
+}
+.bomb-result.success { color:#00e676; }
+.bomb-result.fail { color:#ff4444; }
+.bomb-shake { animation:bombShake .08s infinite; }
+@keyframes bombShake {
+  0%,100%{transform:translateX(0);}
+  25%{transform:translateX(-4px);}
+  75%{transform:translateX(4px);}
+}
+/* 倒计时警告态 */
+.bomb-device.warning {
+  animation:bombWarn .4s infinite;
+  box-shadow:0 0 30px rgba(255,40,40,.35),inset 0 0 20px rgba(255,0,0,.12);
+}
+.bomb-device.critical {
+  animation:bombCritical .1s infinite;
+  box-shadow:0 0 55px rgba(255,20,20,.65),inset 0 0 35px rgba(255,0,0,.25);
+}
+@keyframes bombWarn {
+  0%,100%{transform:translateX(0);}
+  25%{transform:translateX(-3px) rotate(-.3deg);}
+  75%{transform:translateX(3px) rotate(.3deg);}
+}
+@keyframes bombCritical {
+  0%,100%{transform:translate(0,0);}
+  20%{transform:translate(-5px,-2px) rotate(-.5deg);}
+  40%{transform:translate(5px,2px) rotate(.5deg);}
+  60%{transform:translate(-4px,1px);}
+  80%{transform:translate(4px,-1px);}
+}
+/* 剪断瞬间冻结（慢动作） */
+.bomb-device.freeze {
+  filter:brightness(.55) saturate(.4);
+  transition:filter .12s;
+}
+.bomb-device.freeze * {
+  animation-play-state:paused !important;
+}
+/* 爆炸全屏闪光 */
+.bomb-flash {
+  position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0;
+}
+.bomb-flash.white {background:#fff;animation:flashWhite .18s ease-out;}
+.bomb-flash.red {background:radial-gradient(circle,#ff2222,#880000);animation:flashRed .45s ease-out;}
+@keyframes flashWhite {0%{opacity:0;}15%{opacity:1;}100%{opacity:0;}}
+@keyframes flashRed {0%{opacity:.85;}100%{opacity:0;}}
+/* BOOM大字 */
+.bomb-boom-text {
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(0);
+  font-size:4.5rem;font-weight:900;color:#ff2222;
+  text-shadow:0 0 40px #ff0000,0 0 80px rgba(255,0,0,.5),0 4px 8px rgba(0,0,0,.6);
+  z-index:10000;pointer-events:none;letter-spacing:4px;
+  animation:boomPop .55s cubic-bezier(.17,.67,.3,1.4) forwards;
+}
+@keyframes boomPop {
+  0%{transform:translate(-50%,-50%) scale(0) rotate(-12deg);opacity:0;}
+  45%{transform:translate(-50%,-50%) scale(1.4) rotate(4deg);opacity:1;}
+  100%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1;}
+}
+/* 成功绿光 */
+.bomb-flash.green {background:radial-gradient(circle,#22ff66,#008833);animation:flashGreen .4s ease-out;}
+@keyframes flashGreen {0%{opacity:.7;}100%{opacity:0;}}
+.bomb-success-text {
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(0);
+  font-size:3rem;font-weight:900;color:#22ff66;
+  text-shadow:0 0 30px #00ff44,0 4px 8px rgba(0,0,0,.6);
+  z-index:10000;pointer-events:none;letter-spacing:2px;
+  animation:boomPop .5s cubic-bezier(.17,.67,.3,1.4) forwards;
+}
+
+/* ---------- 互动区 ---------- */
+.playground {
+  background:var(--bg-soft); border-radius:var(--radius); border:1px solid var(--border);
+  padding:24px; margin-top:40px; position:relative; overflow:hidden; min-height:350px;
+}
+@media (min-width:768px) { .playground { padding:48px; } }
+
+
+
+.playground h3 { font-size:1.3rem; margin-bottom:8px; }
+.playground .hint { color:var(--fg-dim); font-size:.85rem; margin-bottom:20px; }
+#particle-canvas { width:100%; height:280px; border-radius:12px; background:rgba(0,0,0,.3); touch-action:none; }
+
+/* ---------- Footer ---------- */
+footer { text-align:center; padding:50px 20px; border-top:1px solid var(--border); color:var(--fg-dim); font-size:.85rem; }
+footer .secret-text { font-family:var(--mono); font-size:.7rem; opacity:.3; margin-top:16px; }
+
+/* ---------- Toast ---------- */
+.toast-container { position:fixed; top:70px; right:16px; z-index:99990; display:flex; flex-direction:column; gap:10px; max-width:calc(100vw - 32px); }
+.toast {
+  background:var(--bg-soft); border:1px solid var(--accent); border-radius:12px;
+  padding:12px 18px; font-size:.85rem; backdrop-filter:blur(20px);
+  box-shadow:0 8px 30px rgba(0,0,0,.3);
+  animation:slideIn .4s cubic-bezier(.34,1.56,.64,1), fadeOut .4s ease 2.6s forwards;
+}
+.toast .egg-icon { margin-right:8px; }
+@keyframes slideIn { from{transform:translateX(120%);opacity:0;} to{transform:translateX(0);opacity:1;} }
+@keyframes fadeOut { to{opacity:0;transform:translateX(120%);} }
+
+/* ---------- 全屏覆盖层 ---------- */
+.overlay {
+  position:fixed; inset:0; z-index:99995; display:none;
+  align-items:center; justify-content:center; background:rgba(0,0,0,.85);
+  backdrop-filter:blur(10px); flex-direction:column; gap:20px; text-align:center; padding:20px;
+}
+.overlay.show { display:flex; animation:fadeIn .3s; }
+@keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+.overlay h2 { font-size:clamp(1.8rem,6vw,4rem); font-weight:900; }
+.overlay p { color:var(--fg-dim); font-size:1rem; max-width:500px; }
+.overlay .close-hint { font-family:var(--mono); font-size:.75rem; color:var(--fg-dim); margin-top:20px; }
+
+/* ---------- Matrix ---------- */
+#matrix-canvas { position:fixed; inset:0; z-index:99994; display:none; pointer-events:none; }
+#matrix-canvas.show { display:block; }
+
+/* ---------- 迪斯科 ---------- */
+body.disco { animation:discoBg .5s linear infinite; }
+@keyframes discoBg {
+  0%{background:#ff0000;} 16%{background:#ff8800;} 33%{background:#ffff00;}
+  50%{background:#00ff00;} 66%{background:#0088ff;} 83%{background:#8800ff;} 100%{background:#ff0000;}
+}
+body.disco .blob-bg { display:none; }
+
+/* ---------- 右键菜单 ---------- */
+.context-menu {
+  position:fixed; z-index:99997; display:none;
+  background:var(--bg-soft); border:1px solid var(--border); border-radius:12px;
+  padding:8px; min-width:180px; backdrop-filter:blur(20px); box-shadow:0 10px 40px rgba(0,0,0,.4);
+}
+.context-menu.show { display:block; animation:fadeIn .15s; }
+.context-menu-item { padding:10px 16px; border-radius:8px; font-size:.85rem; display:flex; align-items:center; gap:10px; transition:background .15s; }
+.context-menu-item:active { background:var(--accent); color:#fff; }
+.context-menu-divider { height:1px; background:var(--border); margin:4px 8px; }
+
+/* ---------- 四角标记 ---------- */
+.corner-egg { position:fixed; width:40px; height:40px; z-index:50; opacity:0; transition:opacity .3s; pointer-events:none; display:flex; align-items:center; justify-content:center; font-size:1.2rem; }
+.corner-egg.found { opacity:1; }
+.corner-tl { top:64px; left:8px; }
+.corner-tr { top:64px; right:8px; }
+.corner-bl { bottom:8px; left:8px; }
+.corner-br { bottom:8px; right:8px; }
+
+/* ---------- 滚动显现 ---------- */
+.reveal { opacity:0; transform:translateY(40px); transition:all .8s cubic-bezier(.16,1,.3,1); }
+.reveal.visible { opacity:1; transform:translateY(0); }
+
+/* ============================================================
+   移动端彩蛋控制台
+   ============================================================ */
+.egg-console-toggle {
+  position:fixed; bottom:20px; right:20px; z-index:99900;
+  width:52px; height:52px; border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent-3));
+  border:none; color:#fff; font-size:1.4rem;
+  box-shadow:0 6px 24px rgba(124,92,255,.4);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  animation:floatBtn 3s ease-in-out infinite;
+}
+.egg-console-toggle:active { transform:scale(.9); }
+@keyframes floatBtn { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
+@media (hover:hover) and (pointer:fine) {
+  .egg-console-toggle { width:44px; height:44px; font-size:1.1rem; bottom:24px; right:24px; }
+}
+
+.egg-console {
+  position:fixed; bottom:0; left:0; right:0; z-index:99950;
+  background:var(--bg-soft); border-top:1px solid var(--border);
+  border-radius:20px 20px 0 0; padding:20px;
+  transform:translateY(100%); transition:transform .4s cubic-bezier(.34,1.56,.64,1);
+  backdrop-filter:blur(30px); box-shadow:0 -10px 40px rgba(0,0,0,.4);
+  max-height:70vh; overflow-y:auto;
+}
+.egg-console.open { transform:translateY(0); }
+.egg-console-handle {
+  width:40px; height:4px; background:var(--fg-dim); border-radius:2px;
+  margin:0 auto 16px; opacity:.5;
+}
+.egg-console h4 { font-size:.85rem; font-family:var(--mono); color:var(--accent-2); margin-bottom:12px; letter-spacing:1px; }
+.egg-console-section { margin-bottom:20px; }
+
+.egg-input-row { display:flex; gap:8px; }
+.egg-input {
+  flex:1; padding:12px 16px; border-radius:12px; border:1px solid var(--border);
+  background:var(--bg); color:var(--fg); font-family:var(--mono); font-size:.9rem;
+  outline:none; transition:border-color .2s;
+}
+.egg-input:focus { border-color:var(--accent); }
+.egg-input-btn {
+  padding:12px 20px; border-radius:12px; border:none;
+  background:var(--accent); color:#fff; font-weight:600; font-size:.85rem;
+}
+.egg-input-btn:active { transform:scale(.95); }
+.egg-suggestions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.egg-suggestion {
+  padding:4px 10px; border-radius:20px; background:var(--card); border:1px solid var(--border);
+  font-size:.75rem; font-family:var(--mono); color:var(--fg-dim);
+}
+.egg-suggestion:active { background:var(--accent); color:#fff; }
+
+.dpad { display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:6px; width:180px; margin:0 auto; }
+.dpad-btn {
+  width:54px; height:54px; border-radius:12px; border:1px solid var(--border);
+  background:var(--card); color:var(--fg); font-size:1.2rem;
+  display:flex; align-items:center; justify-content:center; transition:all .1s;
+}
+.dpad-btn:active { background:var(--accent); border-color:var(--accent); transform:scale(.92); }
+.dpad-up { grid-column:2; grid-row:1; }
+.dpad-left { grid-column:1; grid-row:2; }
+.dpad-center { grid-column:2; grid-row:2; background:transparent; border:none; font-size:.7rem; color:var(--fg-dim); font-family:var(--mono); }
+.dpad-right { grid-column:3; grid-row:2; }
+.dpad-down { grid-column:2; grid-row:3; }
+.dpad-ab { display:flex; gap:10px; justify-content:center; margin-top:12px; }
+.dpad-ab .dpad-btn { width:48px; height:48px; border-radius:50%; font-weight:800; font-size:1rem; }
+.dpad-ab .btn-a { background:rgba(0,229,255,.15); border-color:var(--accent-2); color:var(--accent-2); }
+.dpad-ab .btn-b { background:rgba(255,92,138,.15); border-color:var(--accent-3); color:var(--accent-3); }
+
+.shortcut-row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+.shortcut-btn {
+  padding:10px 16px; border-radius:10px; border:1px solid var(--border);
+  background:var(--card); color:var(--fg); font-size:.8rem; font-weight:600;
+  font-family:var(--mono); transition:all .15s;
+}
+.shortcut-btn:active { background:var(--accent); border-color:var(--accent); color:#fff; transform:scale(.95); }
+
+.egg-console-close {
+  position:absolute; top:12px; right:16px; background:none; border:none;
+  color:var(--fg-dim); font-size:1.3rem; padding:4px 8px;
+}
+
+/* ============================================================
+   MJ 致敬专区 (Michael Jackson Tribute)
+   ============================================================ */
+
+/* --- 月球漫步舞台 --- */
+/* SVG 关节旋转中心统一用 SVG 视口坐标，确保跨浏览器一致 */
+.mj-svg .thigh, .mj-svg .calf, .mj-fullmoon .thigh, .mj-fullmoon .calf {
+  transform-box: view-box;
+}
+.mj-stage {
+  position: relative; height: 140px; border-radius: 12px;
+  background: linear-gradient(180deg, #0a0a12 0%, #1a1a2e 60%, #0d0d1a 100%);
+  overflow: hidden; margin-bottom: 16px; border: 1px solid var(--border);
+}
+/* Billie Jean 发光地板 */
+.mj-floor {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 35px;
+  display: flex;
+}
+.mj-tile {
+  flex: 1; border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02); transition: background .15s, box-shadow .15s;
+}
+.mj-tile.lit {
+  background: rgba(0,229,255,.4);
+  box-shadow: 0 0 15px rgba(0,229,255,.6), inset 0 0 10px rgba(0,229,255,.3);
+}
+/* MJ 剪影 */
+.mj-figure {
+  position: absolute; bottom: 28px; left: 10px; width: 48px; height: 84px;
+  transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+  z-index: 2;
+}
+.mj-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+/* 动画 — 逼真太空步 */
+@keyframes mjMoonwalk {
+  0% { left: calc(100% - 58px); }   /* 从舞台右侧出发 */
+  100% { left: 10px; }              /* 向后退到左侧 */
+}
+.mj-figure.moonwalking {
+  animation: mjMoonwalk 2.8s ease-in-out forwards;
+}
+/* 身体走路起伏 */
+.mj-figure.moonwalking .mj-svg {
+  animation: mjBodyBob .55s ease-in-out infinite;
+}
+@keyframes mjBodyBob {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+/* 左腿大腿（绕左髋 31,77 旋转） */
+.mj-figure.moonwalking .thigh-l {
+  animation: thighL .55s ease-in-out infinite;
+  transform-origin: 31px 77px;
+}
+/* 左腿小腿（绕左膝 29,95 旋转） */
+.mj-figure.moonwalking .calf-l {
+  animation: calfL .55s ease-in-out infinite;
+  transform-origin: 29px 95px;
+}
+/* 右腿大腿（绕右髋 45,77 旋转） */
+.mj-figure.moonwalking .thigh-r {
+  animation: thighR .55s ease-in-out infinite;
+  transform-origin: 45px 77px;
+}
+/* 右腿小腿（绕右膝 47,93 旋转） */
+.mj-figure.moonwalking .calf-r {
+  animation: calfR .55s ease-in-out infinite;
+  transform-origin: 47px 93px;
+}
+/* 左腿: 0-50% 平放后滑(垂直), 50-100% 踮脚前收 */
+@keyframes thighL {
+  0%,100% { transform: rotate(6deg); }
+  50% { transform: rotate(-22deg); }
+}
+@keyframes calfL {
+  0%,100% { transform: rotate(0deg); }
+  50% { transform: rotate(40deg); }
+}
+/* 右腿: 与左腿反相 */
+@keyframes thighR {
+  0%,100% { transform: rotate(-22deg); }
+  50% { transform: rotate(6deg); }
+}
+@keyframes calfR {
+  0%,100% { transform: rotate(40deg); }
+  50% { transform: rotate(0deg); }
+}
+
+@keyframes mjSpin {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(360deg) scale(1.1); }
+  100% { transform: rotate(720deg) scale(1); }
+}
+.mj-figure.spinning { animation: mjSpin .8s ease-in-out; }
+
+@keyframes mjTiptoe {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-12px) scaleY(1.05); }
+}
+.mj-figure.tiptoe { animation: mjTiptoe 1s ease-in-out; }
+
+@keyframes mjLean45 {
+  0% { transform: rotate(0deg); }
+  30% { transform: rotate(45deg); transform-origin: bottom center; }
+  70% { transform: rotate(45deg); transform-origin: bottom center; }
+  100% { transform: rotate(0deg); }
+}
+.mj-figure.leaning { animation: mjLean45 2s ease-in-out; }
+
+.mj-lyric {
+  font-family: var(--mono); font-size: .75rem; color: var(--accent-2);
+  text-align: center; min-height: 20px; margin-top: 8px;
+  transition: opacity .3s;
+}
+
+/* --- 白手套光标模式 --- */
+body.glove-cursor .cursor-dot {
+  width: 20px; height: 20px; background: #fff;
+  box-shadow: 0 0 12px rgba(255,255,255,.7);
+  border-radius: 50% 50% 45% 45%;
+}
+body.glove-cursor .cursor-ring {
+  width: 44px; height: 44px; border-color: #fff;
+  box-shadow: 0 0 15px rgba(255,255,255,.3);
+}
+
+/* --- Thriller 主题 --- */
+body.thriller-mode {
+  background: #1a0000;
+  animation: thrillerPulse 2s ease-in-out infinite;
+}
+@keyframes thrillerPulse {
+  0%,100% { background: #1a0000; }
+  50% { background: #2d0000; }
+}
+body.thriller-mode .blob-bg { display: none; }
+body.thriller-mode .hero h1 .grad {
+  background: linear-gradient(135deg, #ff0000, #8b0000, #ff4444);
+  -webkit-background-clip: text; background-clip: text;
+}
+.thriller-zombie {
+  position: fixed; bottom: -60px; font-size: 2.5rem; z-index: 99993;
+  pointer-events: none;
+}
+@keyframes zombieWalk {
+  0% { transform: translateX(-100px) rotate(-5deg); }
+  100% { transform: translateX(calc(100vw + 100px)) rotate(5deg); }
+}
+
+/* --- 全屏月球漫步 --- */
+.mj-fullmoon {
+  position: fixed; bottom: 18%; left: -100px; z-index: 99993;
+  width: 70px; height: 122px; pointer-events: none; opacity: 0;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,.5));
+}
+.mj-fullmoon svg { width: 100%; height: 100%; }
+.mj-fullmoon.show {
+  opacity: 1;
+  animation: fullMoon 3s ease-in-out forwards;
+}
+.mj-fullmoon.show .thigh-l { animation: thighL .55s ease-in-out infinite; transform-origin: 31px 77px; }
+.mj-fullmoon.show .calf-l { animation: calfL .55s ease-in-out infinite; transform-origin: 29px 95px; }
+.mj-fullmoon.show .thigh-r { animation: thighR .55s ease-in-out infinite; transform-origin: 45px 77px; }
+.mj-fullmoon.show .calf-r { animation: calfR .55s ease-in-out infinite; transform-origin: 47px 93px; }
+@keyframes fullMoon {
+  0% { left: calc(100% + 100px); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: -100px; opacity: 0; }
+}
+
+/* --- Billie Jean 全屏地板 --- */
+.billie-floor {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 80px;
+  z-index: 99992; display: flex; pointer-events: none; opacity: 0;
+  transition: opacity .5s;
+}
+.billie-floor.show { opacity: 1; }
+.billie-tile {
+  flex: 1; border: 1px solid rgba(255,255,255,.1);
+  background: rgba(0,0,0,.5);
+}
+.billie-tile.lit {
+  background: rgba(0,229,255,.5);
+  box-shadow: 0 0 20px rgba(0,229,255,.8);
+}
+
+/* ---------- 打印 ---------- */
+@media print {
+  body { background:#fff; color:#000; }
+  .cursor-dot,.cursor-ring,.blob-bg,.noise,.toast-container,.context-menu,
+  .egg-console-toggle,.egg-console,.corner-egg { display:none !important; }
+  nav,footer { border-color:#ccc; }
+  .card { border:1px solid #ccc; break-inside:avoid; }
+}
+</style>
+</head>
+<body>
+
+<div class="cursor-dot" id="cursorDot"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="blob-bg">
+  <div class="blob blob-1" id="blob1"></div>
+  <div class="blob blob-2" id="blob2"></div>
+  <div class="blob blob-3" id="blob3"></div>
+</div>
+<div class="noise"></div>
+
+<div class="corner-egg corner-tl" data-corner="tl">◆</div>
+<div class="corner-egg corner-tr" data-corner="tr">◆</div>
+<div class="corner-egg corner-bl" data-corner="bl">◆</div>
+<div class="corner-egg corner-br" data-corner="br">◆</div>
+
+<nav>
+  <div class="logo" id="logo">
+    <span class="logo-dot"></span>
+    <span id="logoText">Playground</span>
+  </div>
+  <div class="nav-links">
+    <a href="#experiments">实验</a>
+    <a href="#play">互动</a>
+    <a href="#about">关于</a>
+  </div>
+</nav>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="overlay" id="overlay">
+  <h2 id="overlayTitle">你发现了什么</h2>
+  <p id="overlayText">继续探索吧</p>
+  <div class="close-hint">点击任意处关闭</div>
+</div>
+
+<canvas id="matrix-canvas"></canvas>
+
+<div class="context-menu" id="contextMenu">
+  <div class="context-menu-item" data-action="copy">📋 复制</div>
+  <div class="context-menu-item" data-action="inspect">🔍 检查元素</div>
+  <div class="context-menu-divider"></div>
+  <div class="context-menu-item" data-action="secret">❓ 神秘选项</div>
+  <div class="context-menu-item" data-action="easteregg">🥚 找彩蛋?</div>
+</div>
+
+<section class="hero" id="top">
+  <h1>
+    一个<br/>
+    <span class="grad" id="heroTitle">藏满彩蛋</span><br/>
+    的网页
+  </h1>
+  <p>移动光标、点击、打字、滚动…… 每个角落都可能藏着惊喜。手机用户点右下角 🎮 打开彩蛋控制台。</p>
+  <div class="hero-cta">
+    <button class="btn btn-primary" id="startBtn">开始探索</button>
+    <button class="btn btn-ghost" id="dontPressBtn">绝对不要按这个按钮</button>
+  </div>
+  <div class="scroll-hint">
+    <span>向下滚动</span>
+    <div class="line"></div>
+  </div>
+</section>
+
+<section id="experiments">
+  <div class="reveal">
+    <div class="section-label">// Experiments</div>
+    <h2 class="section-title">小实验们</h2>
+    <p class="section-desc">每个卡片都是一个独立的小互动。点点看。</p>
+  </div>
+  <div class="grid">
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">🔢</div>
+        <h3>点击计数器</h3>
+        <p>老实的计数器? 点到某个数字会发生奇怪的事。</p>
+      </div>
+      <div>
+        <div class="counter-display" id="counter">0</div>
+        <button class="card-action" id="counterBtn">点我 +1</button>
+      </div>
+    </div>
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">🔮</div>
+        <h3>魔法 8 号球</h3>
+        <p>默念一个是/否问题, 然后点击球摇一摇。</p>
+      </div>
+      <div style="text-align:center;">
+        <div class="eight-ball" id="eightBall"><div class="window" id="eightWindow">8</div></div>
+        <button class="card-action" id="eightBtn">摇晃</button>
+      </div>
+    </div>
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">🎨</div>
+        <h3>无限调色板</h3>
+        <p>每次点击生成新配色, 点色块复制色值。</p>
+      </div>
+      <div>
+        <div class="palette" id="palette"></div>
+        <button class="card-action" id="paletteBtn">生成新配色</button>
+      </div>
+    </div>
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">🖱️</div>
+        <h3>光标动物园</h3>
+        <p>点击切换光标效果。每种状态都不一样。</p>
+      </div>
+      <div><button class="card-action" id="cursorZooBtn">切换光标效果</button></div>
+    </div>
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">📝</div>
+        <h3>文字乱码器</h3>
+        <p>点击/触摸标题看它解码。黑客电影风。</p>
+      </div>
+      <div><h3 id="scrambleText" style="font-family:var(--mono);font-size:1.1rem;letter-spacing:1px;">TAP ME</h3></div>
+    </div>
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">❓</div>
+        <h3>这是什么?</h3>
+        <p>一个普通的卡片。没有任何特别之处。真的。</p>
+      </div>
+      <div><button class="card-action" id="mysteryBtn">不要点</button></div>
+    </div>
+
+    <!-- 新实验: 像素画板 -->
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">🧩</div>
+        <h3>像素画板</h3>
+        <p>16×16 迷你画布，点击或拖动涂色。</p>
+      </div>
+      <div>
+        <div class="pixel-palette" id="pixelPalette"></div>
+        <div class="pixel-grid" id="pixelGrid"></div>
+        <button class="card-action" id="pixelClear">清空画布</button>
+      </div>
+    </div>
+
+    <!-- 新实验: 重力沙盒 -->
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">⚽</div>
+        <h3>重力沙盒</h3>
+        <p>点击画布生成小球，看它们弹跳碰撞。</p>
+      </div>
+      <div>
+        <canvas class="gravity-canvas" id="gravityCanvas"></canvas>
+        <button class="card-action" id="gravityClear">清空</button>
+      </div>
+    </div>
+
+    <!-- 新实验: 二进制时钟 -->
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">🕐</div>
+        <h3>二进制时钟</h3>
+        <p>用 0 和 1 读取时间。极客专属。</p>
+      </div>
+      <div class="binary-clock" id="binaryClock"></div>
+    </div>
+
+    <!-- 新实验: 节拍音序器 -->
+    <div class="card reveal" data-tilt>
+      <div>
+        <div class="card-icon">🥁</div>
+        <h3>节拍音序器</h3>
+        <p>16 步鼓机，点击格子作曲，按播放。</p>
+      </div>
+      <div>
+        <div class="seq-grid" id="seqGrid"></div>
+        <div class="seq-controls">
+          <button class="card-action" id="seqPlay">▶ 播放</button>
+          <button class="card-action" id="seqClear">清空</button>
+        </div>
+      </div>
+    </div>
+
+
+  <!-- 🎲 幸运骰子 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">🎲</div>
+      <h3>幸运骰子</h3>
+      <p>掷一颗骰子，看看今天手气如何。连掷试试？</p>
+    </div>
+    <div style="text-align:center;">
+      <div class="dice" id="dice">⚀</div>
+      <button class="card-action" id="diceBtn">掷骰子</button>
+    </div>
+  </div>
+
+  <!-- 🪙 硬币翻转 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">🪙</div>
+      <h3>硬币翻转</h3>
+      <p>抛一枚硬币，正面还是反面？交给命运决定。</p>
+    </div>
+    <div style="text-align:center;">
+      <div class="coin-wrap">
+      <div class="coin" id="coin">
+        <div class="coin-face coin-head">正</div>
+        <div class="coin-face coin-tail">反</div>
+      </div>
+      </div>
+      <button class="card-action" id="coinBtn">抛硬币</button>
+    </div>
+  </div>
+
+  <!-- ⚡ 反应速度测试 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">⚡</div>
+      <h3>反应速度测试</h3>
+      <p>等背景变绿后立刻点击，测测你的反应有多快。</p>
+    </div>
+    <div>
+      <div class="reaction-box" id="reactionBox">点击开始</div>
+    </div>
+  </div>
+
+  <!-- ✊ 石头剪刀布 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">✊</div>
+      <h3>石头剪刀布</h3>
+      <p>和电脑来一局，看看谁的胜率更高。</p>
+    </div>
+    <div>
+      <div class="rps-result" id="rpsResult">选择你的出招</div>
+      <div class="rps-buttons">
+        <button class="rps-btn" data-choice="rock">✊</button>
+        <button class="rps-btn" data-choice="paper">✋</button>
+        <button class="rps-btn" data-choice="scissors">✌️</button>
+      </div>
+      <div class="rps-score" id="rpsScore">你 0 : 0 电脑</div>
+    </div>
+  </div>
+
+  <!-- 🎯 随机决策器 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">🎯</div>
+      <h3>随机决策器</h3>
+      <p>选择困难症救星！输入选项（用逗号分隔），帮你随机选一个。</p>
+    </div>
+    <div>
+      <input type="text" class="decision-input" id="decisionInput" placeholder="如：吃火锅, 吃烧烤, 吃沙拉" />
+      <div class="decision-result" id="decisionResult">—</div>
+      <button class="card-action" id="decisionBtn">帮我选！</button>
+    </div>
+  </div>
+
+  <!-- 🤥 测谎仪 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">🤥</div>
+      <h3>测谎仪</h3>
+      <p>盯着屏幕说出一句话，然后点击按钮，AI 会判断你有没有撒谎。（纯属娱乐）</p>
+    </div>
+    <div class="lie-detector">
+      <div class="lie-scan"><div class="lie-scan-bar" id="lieBar"></div></div>
+      <div class="lie-result" id="lieResult">等待检测…</div>
+      <div class="lie-percent" id="liePercent"></div>
+      <button class="card-action" id="lieBtn" style="display:block;margin:12px auto 0;">开始检测</button>
+    </div>
+  </div>
+
+  <!-- 🪤 按了就后悔 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">🪤</div>
+      <h3>按了就后悔</h3>
+      <p>一个看起来很普通的按钮。你确定要按吗？真的确定吗？再想想？</p>
+    </div>
+    <div class="regret-btn-wrap">
+      <button class="regret-btn" id="regretBtn">不要按我</button>
+      <div class="regret-msg" id="regretMsg"></div>
+    </div>
+  </div>
+
+  <!-- 🦖 谷歌小恐龙 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">🦖</div>
+      <h3>谷歌小恐龙</h3>
+      <p>Chrome断网小游戏复刻版。点击屏幕或按空格跳跃，躲开仙人掌，看你能跑多少分。</p>
+    </div>
+    <div>
+      <div class="dino-wrap">
+        <canvas id="dinoCanvas" width="400" height="120"></canvas>
+      </div>
+      <div class="dino-info">
+        <span>分数: <span class="dino-score" id="dinoScore">0</span></span>
+        <span>最高: <span id="dinoHigh">0</span></span>
+      </div>
+      <div class="dino-hint">点击画布 / 按空格键 跳跃</div>
+      <button class="card-action" id="dinoRestart" style="display:block;margin:10px auto 0;">重新开始</button>
+    </div>
+  </div>
+
+  <!-- ⭕ 井字棋 -->
+  <div class="card reveal" data-tilt>
+    <div>
+      <div class="card-icon">⭕</div>
+      <h3>井字棋</h3>
+      <p>经典三连棋，你是 ❌，AI 是 ⭕。AI 会堵会赢，试试能不能逼平它。</p>
+    </div>
+    <div>
+      <div class="ttt-scores">
+        <span>你: <span id="tttPlayerWins">0</span></span>
+        <span>平: <span id="tttDraws">0</span></span>
+        <span>AI: <span id="tttAiWins">0</span></span>
+      </div>
+      <div class="ttt-status" id="tttStatus">轮到你了（❌）</div>
+      <div class="ttt-board" id="tttBoard">
+        <div class="ttt-cell" data-i="0"></div>
+        <div class="ttt-cell" data-i="1"></div>
+        <div class="ttt-cell" data-i="2"></div>
+        <div class="ttt-cell" data-i="3"></div>
+        <div class="ttt-cell" data-i="4"></div>
+        <div class="ttt-cell" data-i="5"></div>
+        <div class="ttt-cell" data-i="6"></div>
+        <div class="ttt-cell" data-i="7"></div>
+        <div class="ttt-cell" data-i="8"></div>
+      </div>
+      <button class="card-action" id="tttReset" style="display:block;margin:10px auto 0;">再来一局</button>
+    </div>
+  </div>
+
+<!-- 💣 拆弹专家 -->
+  <div class="card reveal bomb-card" data-tilt>
+    <div>
+      <div class="card-icon">💣</div>
+      <h3>拆弹专家</h3>
+      <p>定时炸弹已启动！用 +/− 设定时间，按 START 开始。红线蓝线只有一根是对的，剪错或超时就 BOOM！</p>
+    </div>
+    <div>
+      <div class="bomb-device" id="bombDevice">
+        <!-- TNT 炸药捆 -->
+        <div class="tnt-bundle">
+          <div class="tnt-stick"></div>
+          <div class="tnt-stick"></div>
+          <div class="tnt-stick"></div>
+          <div class="tnt-stick"></div>
+          <div class="tnt-band top"></div>
+          <div class="tnt-band bottom"></div>
+        </div>
+        <!-- 电子定时器 -->
+        <div class="timer-panel">
+          <div class="timer-screw tl"></div>
+          <div class="timer-screw tr"></div>
+          <div class="timer-screw bl"></div>
+          <div class="timer-screw br"></div>
+          <div class="timer-terminal left"></div>
+          <div class="timer-terminal right"></div>
+          <div class="timer-lights" id="timerLights">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <button class="timer-start" id="bombStart">START</button>
+          <div class="timer-display" id="bombTimer">00:10</div>
+          <div class="timer-controls">
+            <button class="timer-ctrl" id="bombMinus">−</button>
+            <button class="timer-ctrl" id="bombPlus">+</button>
+          </div>
+          <div class="timer-label">ELECTRONIC SYSTEM TED-60</div>
+        </div>
+        <!-- 红蓝螺旋线 -->
+        <div class="bomb-wires">
+          <svg class="wire-svg red disabled" id="wireRed" viewBox="0 0 60 170">
+            <path d="M 25.0 155.0 L 19.0 160.0" stroke="#bb0000" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+            <path d="M 25.0 155.0 L 24.3 153.9 L 22.4 152.9 L 19.4 151.8 L 16.0 150.7 L 12.6 149.6 L 9.6 148.6 L 7.7 147.5 L 7.0 146.4 L 7.7 145.4 L 9.6 144.3 L 12.6 143.2 L 16.0 142.1 L 19.4 141.1 L 22.4 140.0 L 24.3 138.9 L 25.0 137.9 L 24.3 136.8 L 22.4 135.7 L 19.4 134.6 L 16.0 133.6 L 12.6 132.5 L 9.6 131.4 L 7.7 130.4 L 7.0 129.3 L 7.7 128.2 L 9.6 127.1 L 12.6 126.1 L 16.0 125.0 L 19.4 123.9 L 22.4 122.9 L 24.3 121.8 L 25.0 120.7 L 24.3 119.6 L 22.4 118.6 L 19.4 117.5 L 16.0 116.4 L 12.6 115.4 L 9.6 114.3 L 7.7 113.2 L 7.0 112.1 L 7.7 111.1 L 9.6 110.0 L 12.6 108.9 L 16.0 107.9 L 19.4 106.8 L 22.4 105.7 L 24.3 104.6 L 25.0 103.6 L 24.3 102.5 L 22.4 101.4 L 19.4 100.4 L 16.0 99.3 L 12.6 98.2 L 9.6 97.1 L 7.7 96.1 L 7.0 95.0 L 7.7 93.9 L 9.6 92.9 L 12.6 91.8 L 16.0 90.7 L 19.4 89.6 L 22.4 88.6 L 24.3 87.5 L 25.0 86.4 L 24.3 85.4 L 22.4 84.3 L 19.4 83.2 L 16.0 82.1 L 12.6 81.1 L 9.6 80.0 L 7.7 78.9 L 7.0 77.9 L 7.7 76.8 L 9.6 75.7 L 12.6 74.6 L 16.0 73.6 L 19.4 72.5 L 22.4 71.4 L 24.3 70.4 L 25.0 69.3 L 24.3 68.2 L 22.4 67.1 L 19.4 66.1 L 16.0 65.0 L 12.6 63.9 L 9.6 62.9 L 7.7 61.8 L 7.0 60.7 L 7.7 59.6 L 9.6 58.6 L 12.6 57.5 L 16.0 56.4 L 19.4 55.4 L 22.4 54.3 L 24.3 53.2 L 25.0 52.1 L 24.3 51.1 L 22.4 50.0 L 19.4 48.9 L 16.0 47.9 L 12.6 46.8 L 9.6 45.7 L 7.7 44.6 L 7.0 43.6 L 7.7 42.5 L 9.6 41.4 L 12.6 40.4 L 16.0 39.3 L 19.4 38.2 L 22.4 37.1 L 24.3 36.1 L 25.0 35.0 Q 58.0 2.0 75.0 18.0" stroke="#cc0000" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 26.5 155.0 L 25.8 153.9 L 23.9 152.9 L 20.9 151.8 L 17.5 150.7 L 14.1 149.6 L 11.1 148.6 L 9.2 147.5 L 8.5 146.4 L 9.2 145.4 L 11.1 144.3 L 14.1 143.2 L 17.5 142.1 L 20.9 141.1 L 23.9 140.0 L 25.8 138.9 L 26.5 137.9 L 25.8 136.8 L 23.9 135.7 L 20.9 134.6 L 17.5 133.6 L 14.1 132.5 L 11.1 131.4 L 9.2 130.4 L 8.5 129.3 L 9.2 128.2 L 11.1 127.1 L 14.1 126.1 L 17.5 125.0 L 20.9 123.9 L 23.9 122.9 L 25.8 121.8 L 26.5 120.7 L 25.8 119.6 L 23.9 118.6 L 20.9 117.5 L 17.5 116.4 L 14.1 115.4 L 11.1 114.3 L 9.2 113.2 L 8.5 112.1 L 9.2 111.1 L 11.1 110.0 L 14.1 108.9 L 17.5 107.9 L 20.9 106.8 L 23.9 105.7 L 25.8 104.6 L 26.5 103.6 L 25.8 102.5 L 23.9 101.4 L 20.9 100.4 L 17.5 99.3 L 14.1 98.2 L 11.1 97.1 L 9.2 96.1 L 8.5 95.0 L 9.2 93.9 L 11.1 92.9 L 14.1 91.8 L 17.5 90.7 L 20.9 89.6 L 23.9 88.6 L 25.8 87.5 L 26.5 86.4 L 25.8 85.4 L 23.9 84.3 L 20.9 83.2 L 17.5 82.1 L 14.1 81.1 L 11.1 80.0 L 9.2 78.9 L 8.5 77.9 L 9.2 76.8 L 11.1 75.7 L 14.1 74.6 L 17.5 73.6 L 20.9 72.5 L 23.9 71.4 L 25.8 70.4 L 26.5 69.3 L 25.8 68.2 L 23.9 67.1 L 20.9 66.1 L 17.5 65.0 L 14.1 63.9 L 11.1 62.9 L 9.2 61.8 L 8.5 60.7 L 9.2 59.6 L 11.1 58.6 L 14.1 57.5 L 17.5 56.4 L 20.9 55.4 L 23.9 54.3 L 25.8 53.2 L 26.5 52.1 L 25.8 51.1 L 23.9 50.0 L 20.9 48.9 L 17.5 47.9 L 14.1 46.8 L 11.1 45.7 L 9.2 44.6 L 8.5 43.6 L 9.2 42.5 L 11.1 41.4 L 14.1 40.4 L 17.5 39.3 L 20.9 38.2 L 23.9 37.1 L 25.8 36.1 L 26.5 35.0 Q 59.5 2.0 76.5 18.0" stroke="#ff7777" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          </svg>
+          <svg class="wire-svg blue disabled" id="wireBlue" viewBox="0 0 60 170">
+            <path d="M 35.0 155.0 L 41.0 160.0" stroke="#0033aa" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+            <path d="M 53.0 155.0 L 52.3 153.9 L 50.4 152.9 L 47.4 151.8 L 44.0 150.7 L 40.6 149.6 L 37.6 148.6 L 35.7 147.5 L 35.0 146.4 L 35.7 145.4 L 37.6 144.3 L 40.6 143.2 L 44.0 142.1 L 47.4 141.1 L 50.4 140.0 L 52.3 138.9 L 53.0 137.9 L 52.3 136.8 L 50.4 135.7 L 47.4 134.6 L 44.0 133.6 L 40.6 132.5 L 37.6 131.4 L 35.7 130.4 L 35.0 129.3 L 35.7 128.2 L 37.6 127.1 L 40.6 126.1 L 44.0 125.0 L 47.4 123.9 L 50.4 122.9 L 52.3 121.8 L 53.0 120.7 L 52.3 119.6 L 50.4 118.6 L 47.4 117.5 L 44.0 116.4 L 40.6 115.4 L 37.6 114.3 L 35.7 113.2 L 35.0 112.1 L 35.7 111.1 L 37.6 110.0 L 40.6 108.9 L 44.0 107.9 L 47.4 106.8 L 50.4 105.7 L 52.3 104.6 L 53.0 103.6 L 52.3 102.5 L 50.4 101.4 L 47.4 100.4 L 44.0 99.3 L 40.6 98.2 L 37.6 97.1 L 35.7 96.1 L 35.0 95.0 L 35.7 93.9 L 37.6 92.9 L 40.6 91.8 L 44.0 90.7 L 47.4 89.6 L 50.4 88.6 L 52.3 87.5 L 53.0 86.4 L 52.3 85.4 L 50.4 84.3 L 47.4 83.2 L 44.0 82.1 L 40.6 81.1 L 37.6 80.0 L 35.7 78.9 L 35.0 77.9 L 35.7 76.8 L 37.6 75.7 L 40.6 74.6 L 44.0 73.6 L 47.4 72.5 L 50.4 71.4 L 52.3 70.4 L 53.0 69.3 L 52.3 68.2 L 50.4 67.1 L 47.4 66.1 L 44.0 65.0 L 40.6 63.9 L 37.6 62.9 L 35.7 61.8 L 35.0 60.7 L 35.7 59.6 L 37.6 58.6 L 40.6 57.5 L 44.0 56.4 L 47.4 55.4 L 50.4 54.3 L 52.3 53.2 L 53.0 52.1 L 52.3 51.1 L 50.4 50.0 L 47.4 48.9 L 44.0 47.9 L 40.6 46.8 L 37.6 45.7 L 35.7 44.6 L 35.0 43.6 L 35.7 42.5 L 37.6 41.4 L 40.6 40.4 L 44.0 39.3 L 47.4 38.2 L 50.4 37.1 L 52.3 36.1 L 53.0 35.0 Q 28.0 2.0 -15.0 18.0" stroke="#0044cc" stroke-width="5" fill="none" stroke-linecap="round"/>
+            <path d="M 51.5 155.0 L 50.8 153.9 L 48.9 152.9 L 45.9 151.8 L 42.5 150.7 L 39.1 149.6 L 36.1 148.6 L 34.2 147.5 L 33.5 146.4 L 34.2 145.4 L 36.1 144.3 L 39.1 143.2 L 42.5 142.1 L 45.9 141.1 L 48.9 140.0 L 50.8 138.9 L 51.5 137.9 L 50.8 136.8 L 48.9 135.7 L 45.9 134.6 L 42.5 133.6 L 39.1 132.5 L 36.1 131.4 L 34.2 130.4 L 33.5 129.3 L 34.2 128.2 L 36.1 127.1 L 39.1 126.1 L 42.5 125.0 L 45.9 123.9 L 48.9 122.9 L 50.8 121.8 L 51.5 120.7 L 50.8 119.6 L 48.9 118.6 L 45.9 117.5 L 42.5 116.4 L 39.1 115.4 L 36.1 114.3 L 34.2 113.2 L 33.5 112.1 L 34.2 111.1 L 36.1 110.0 L 39.1 108.9 L 42.5 107.9 L 45.9 106.8 L 48.9 105.7 L 50.8 104.6 L 51.5 103.6 L 50.8 102.5 L 48.9 101.4 L 45.9 100.4 L 42.5 99.3 L 39.1 98.2 L 36.1 97.1 L 34.2 96.1 L 33.5 95.0 L 34.2 93.9 L 36.1 92.9 L 39.1 91.8 L 42.5 90.7 L 45.9 89.6 L 48.9 88.6 L 50.8 87.5 L 51.5 86.4 L 50.8 85.4 L 48.9 84.3 L 45.9 83.2 L 42.5 82.1 L 39.1 81.1 L 36.1 80.0 L 34.2 78.9 L 33.5 77.9 L 34.2 76.8 L 36.1 75.7 L 39.1 74.6 L 42.5 73.6 L 45.9 72.5 L 48.9 71.4 L 50.8 70.4 L 51.5 69.3 L 50.8 68.2 L 48.9 67.1 L 45.9 66.1 L 42.5 65.0 L 39.1 63.9 L 36.1 62.9 L 34.2 61.8 L 33.5 60.7 L 34.2 59.6 L 36.1 58.6 L 39.1 57.5 L 42.5 56.4 L 45.9 55.4 L 48.9 54.3 L 50.8 53.2 L 51.5 52.1 L 50.8 51.1 L 48.9 50.0 L 45.9 48.9 L 42.5 47.9 L 39.1 46.8 L 36.1 45.7 L 34.2 44.6 L 33.5 43.6 L 34.2 42.5 L 36.1 41.4 L 39.1 40.4 L 42.5 39.3 L 45.9 38.2 L 48.9 37.1 L 50.8 36.1 L 51.5 35.0 Q 26.5 2.0 -16.5 18.0" stroke="#77aaff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="bomb-result" id="bombResult">设定时间后按 START</div>
+    </div>
+  </div>
+  </div>
+  <!-- MJ 致敬卡片 -->
+  <div class="card tilt" data-tilt>
+    <div class="card-icon">👑</div>
+    <h3>月球漫步舞台</h3>
+    <p class="card-desc">向流行音乐之王致敬。点击舞台让 MJ 滑步，试试连点 5 次和 10 次。</p>
+    <div class="mj-stage" id="mjStage">
+      <div class="mj-figure" id="mjFigure">
+        <svg class="mj-svg" viewBox="0 0 80 140" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="mjGlow" x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur stdDeviation="1.8" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- ===== 左腿（观众左侧，后脚） ===== -->
+          <g class="thigh thigh-l">
+            <path d="M28 77 L34 77 L32 95 L26 95 Z" fill="#0b0b0b"/>
+            <g class="calf calf-l">
+              <path d="M26 95 L32 95 L30 110 L24 110 Z" fill="#0b0b0b"/>
+              <path d="M24 108 L30 108 L29 113 L23 113 Z" fill="#ffffff"/>
+              <circle cx="26" cy="111" r="1.2" fill="#fff" opacity=".9"/>
+              <ellipse cx="26" cy="114" rx="6.5" ry="3.2" fill="#060606"/>
+              <ellipse cx="28" cy="113" rx="2.2" ry="1" fill="#2a2a2a"/>
+            </g>
+          </g>
+
+          <!-- ===== 右腿（观众右侧，前脚/踮脚） ===== -->
+          <g class="thigh thigh-r">
+            <path d="M42 77 L48 77 L50 93 L44 93 Z" fill="#0b0b0b"/>
+            <g class="calf calf-r">
+              <path d="M44 93 L50 93 L53 105 L47 105 Z" fill="#0b0b0b"/>
+              <path d="M47 103 L53 103 L54 108 L48 108 Z" fill="#ffffff"/>
+              <circle cx="51" cy="106" r="1.2" fill="#fff" opacity=".9"/>
+              <ellipse cx="51" cy="109" rx="6.5" ry="3.2" fill="#060606"/>
+              <ellipse cx="53" cy="108" rx="2.2" ry="1" fill="#2a2a2a"/>
+            </g>
+          </g>
+
+          <!-- ===== 夹克身体 ===== -->
+          <path d="M25 42 L19 72 L24 76 L52 76 L57 72 L51 42 Z" fill="#0b0b0b"/>
+          <path d="M31 42 L38 54 L45 42" stroke="#1f1f1f" stroke-width="1.8" fill="none"/>
+          <line x1="27" y1="57" x2="32" y2="57" stroke="#1f1f1f" stroke-width="1.2"/>
+          <line x1="44" y1="57" x2="49" y2="57" stroke="#1f1f1f" stroke-width="1.2"/>
+          <!-- 腰带 -->
+          <rect x="21" y="74" width="34" height="3.5" fill="#1a1a1a"/>
+          <rect x="36" y="74" width="4.5" height="3.5" fill="#c9a84c"/>
+
+          <!-- ===== 右臂（观众左侧，弯曲身前） ===== -->
+          <path d="M25 44 L15 56 L13 64 L18 66 L25 52 Z" fill="#0b0b0b"/>
+
+          <!-- ===== 左臂（观众右侧，前伸戴白手套） ===== -->
+          <path d="M51 44 L60 53 L62 61 L57 63 L50 51 Z" fill="#0b0b0b"/>
+          <ellipse cx="62" cy="63" rx="5.5" ry="4.5" fill="#ffffff" filter="url(#mjGlow)"/>
+          <path d="M65 61 L69 59 M66 63 L70 63 M65 65 L69 67" stroke="#e8e8e8" stroke-width="1.1" stroke-linecap="round"/>
+
+          <!-- ===== 脖子 ===== -->
+          <rect x="35" y="37" width="6" height="5" fill="#d4b896"/>
+
+          <!-- ===== 头部 ===== -->
+          <ellipse cx="38" cy="29" rx="9" ry="10" fill="#d4b896"/>
+
+          <!-- ===== 卷发（头两侧+后脑） ===== -->
+          <path d="M29 25 Q24 29 26 38 Q29 35 30 30 Z" fill="#1a1210"/>
+          <path d="M47 25 Q52 29 50 38 Q47 35 46 30 Z" fill="#1a1210"/>
+          <path d="M30 36 Q34 39 38 38 Q42 39 46 36" stroke="#1a1210" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+          <!-- ===== 礼帽（最后画，在最上层） ===== -->
+          <ellipse cx="38" cy="20" rx="21" ry="4.5" fill="#080808"/>
+          <path d="M25 20 Q25 7 38 7 Q51 7 51 20 Z" fill="#080808"/>
+          <rect x="25" y="17" width="26" height="3.5" fill="#1a1a1a"/>
+        </svg>
+      </div>
+      <div class="mj-floor" id="mjFloor"></div>
+    </div>
+    <div class="mj-lyric" id="mjLyric">点击舞台 · Billie Jean 地板会发光</div>
+  </div>
+  </div>
+</section>
+
+<section id="play">
+  <div class="reveal">
+    <div class="section-label">// Playground</div>
+    <h2 class="section-title">粒子游乐场</h2>
+    <p class="section-desc">在画布上移动手指或鼠标, 粒子会跟随你。</p>
+  </div>
+  <div class="playground reveal">
+    <h3>Canvas 粒子系统</h3>
+    <p class="hint">触摸移动吸引粒子 · 点击爆炸 · 长按大爆发</p>
+    <canvas id="particle-canvas"></canvas>
+  </div>
+</section>
+
+<section id="about">
+  <div class="reveal" style="text-align:center;">
+    <div class="section-label">// About</div>
+    <h2 class="section-title">关于这个页面</h2>
+    <p class="section-desc" style="margin:0 auto;">
+      纯手写 HTML / CSS / JS, 零依赖。桌面手机都能玩。<br/>
+      你已经发现<span id="eggCount">?</span>个彩蛋
+    </p>
+    <div style="margin-top:24px; font-family:var(--mono); font-size:.75rem; color:var(--fg-dim);">
+      手机用户点右下角 🎮 打开彩蛋控制台 · 桌面用户也能用
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>Made with ❤️ and too many easter eggs.</p>
+  <p class="secret-text" id="footerSecret">there are no easter eggs here. stop looking.</p>
+</footer>
+
+<!-- 移动端彩蛋控制台 -->
+<button class="egg-console-toggle" id="eggConsoleToggle" aria-label="彩蛋控制台">🎮</button>
+<div class="egg-console" id="eggConsole">
+  <button class="egg-console-close" id="eggConsoleClose">✕</button>
+  <div class="egg-console-handle"></div>
+
+  <div class="egg-console-section">
+    <h4>⌨️ 输入指令</h4>
+    <div class="egg-input-row">
+      <input type="text" class="egg-input" id="eggInput" placeholder="输入指令/mj歌名，如 beatit" autocomplete="off" />
+      <button class="egg-input-btn" id="eggInputBtn">发送</button>
+    </div>
+    <div class="egg-suggestions">
+      <span class="egg-suggestion">hello</span>
+      <span class="egg-suggestion">matrix</span>
+      <span class="egg-suggestion">rick</span>
+      <span class="egg-suggestion">moonwalk</span>
+      <span class="egg-suggestion">thriller</span>
+      <span class="egg-suggestion">billiejean</span>
+      <span class="egg-suggestion">smoothcriminal</span>
+      <span class="egg-suggestion">light</span>
+      <span class="egg-suggestion">dark</span>
+    </div>
+  </div>
+
+  <div class="egg-console-section">
+    <h4>🎮 KONAMI 码 (↑↑↓↓←→←→ B A)</h4>
+    <div class="dpad">
+      <button class="dpad-btn dpad-up" data-key="ArrowUp">↑</button>
+      <button class="dpad-btn dpad-left" data-key="ArrowLeft">←</button>
+      <div class="dpad-center">KONAMI</div>
+      <button class="dpad-btn dpad-right" data-key="ArrowRight">→</button>
+      <button class="dpad-btn dpad-down" data-key="ArrowDown">↓</button>
+    </div>
+    <div class="dpad-ab">
+      <button class="dpad-btn btn-b" data-key="b">B</button>
+      <button class="dpad-btn btn-a" data-key="a">A</button>
+    </div>
+  </div>
+
+  <div class="egg-console-section">
+    <h4>⚡ 快捷键</h4>
+    <div class="shortcut-row">
+      <button class="shortcut-btn" data-shortcut="f">F 致敬</button>
+      <button class="shortcut-btn" data-shortcut="space">空格彩带</button>
+      <button class="shortcut-btn" data-shortcut="rightclick">右键菜单</button>
+      <button class="shortcut-btn" data-shortcut="longpress">长按3秒</button>
+      <button class="shortcut-btn" data-shortcut="disco">迪斯科</button>
+      <button class="shortcut-btn" data-shortcut="confetti">彩带</button>
+      <button class="shortcut-btn" data-shortcut="shake">摇一摇</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   工具函数
+   ============================================================ */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+const rand = (min, max) => Math.random() * (max - min) + min;
+const randInt = (min, max) => Math.floor(rand(min, max + 1));
+
+function toast(msg, icon = '🥚') {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span class="egg-icon">${icon}</span>${msg}`;
+  $('#toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+function showOverlay(title, text) {
+  $('#overlayTitle').textContent = title;
+  $('#overlayText').textContent = text;
+  $('#overlay').classList.add('show');
+}
+$('#overlay').addEventListener('click', () => $('#overlay').classList.remove('show'));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#overlay').classList.remove('show'); });
+
+/* 统一按键分发 */
+function dispatchKey(key) {
+  document.dispatchEvent(new KeyboardEvent('keydown', { key, code: key }));
+}
+
+/* ============================================================
+   1. 自定义光标 (鼠标 + 触摸)
+   ============================================================ */
+const dot = $('#cursorDot'), ring = $('#cursorRing');
+let mouseX = 0, mouseY = 0, ringX = 0, ringY = 0;
+let cursorHideTimer;
+
+function updateCursorPos(x, y) {
+  mouseX = x; mouseY = y;
+  dot.style.left = x + 'px'; dot.style.top = y + 'px';
+  document.body.classList.add('cursor-active');
+  clearTimeout(cursorHideTimer);
+}
+document.addEventListener('mousemove', (e) => updateCursorPos(e.clientX, e.clientY));
+document.addEventListener('touchmove', (e) => {
+  if (e.touches[0]) updateCursorPos(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: true });
+document.addEventListener('touchstart', (e) => {
+  if (e.touches[0]) updateCursorPos(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: true });
+document.addEventListener('touchend', () => {
+  cursorHideTimer = setTimeout(() => document.body.classList.remove('cursor-active'), 500);
+});
+
+function animateRing() {
+  ringX += (mouseX - ringX) * 0.18;
+  ringY += (mouseY - ringY) * 0.18;
+  ring.style.left = ringX + 'px'; ring.style.top = ringY + 'px';
+  requestAnimationFrame(animateRing);
+}
+animateRing();
+
+function handleHoverIn(e) {
+  if (e.target.closest('a,button,.card,[data-tilt],input')) document.body.classList.add('hover');
+}
+function handleHoverOut(e) {
+  if (e.target.closest('a,button,.card,[data-tilt],input')) document.body.classList.remove('hover');
+}
+document.addEventListener('pointerover', handleHoverIn);
+document.addEventListener('pointerout', handleHoverOut);
+document.addEventListener('pointerdown', () => document.body.classList.add('click'));
+document.addEventListener('pointerup', () => document.body.classList.remove('click'));
+
+/* ============================================================
+   2. 背景流体
+   ============================================================ */
+const blobs = [$('#blob1'), $('#blob2'), $('#blob3')];
+function updateBlobs(x, y) {
+  const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+  const dx = (x - cx) / cx, dy = (y - cy) / cy;
+  blobs[0].style.transform = `translate(${dx * 30}px, ${dy * 30}px)`;
+  blobs[1].style.transform = `translate(${-dx * 40}px, ${-dy * 40}px)`;
+  blobs[2].style.transform = `translate(${dx * 20}px, ${-dy * 25}px)`;
+}
+document.addEventListener('pointermove', (e) => updateBlobs(e.clientX, e.clientY));
+
+/* ============================================================
+   3. 3D 倾斜卡片
+   ============================================================ */
+$$('[data-tilt]').forEach(card => {
+  card.addEventListener('pointermove', (e) => {
+    const r = card.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5;
+    const y = (e.clientY - r.top) / r.height - 0.5;
+    card.style.transform = `perspective(800px) rotateY(${x * 12}deg) rotateX(${-y * 12}deg) translateY(-5px)`;
+  });
+  card.addEventListener('pointerleave', () => { card.style.transform = ''; });
+  card.addEventListener('touchend', () => { card.style.transform = ''; });
+});
+
+/* ============================================================
+   4. 滚动显现
+   ============================================================ */
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(en => { if (en.isIntersecting) en.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+$$('.reveal').forEach(el => io.observe(el));
+
+/* ============================================================
+   5. 点击计数器
+   ============================================================ */
+let count = 0;
+const counterEl = $('#counter');
+$('#counterBtn').addEventListener('click', () => {
+  count++;
+  if (count === 7) { counterEl.textContent = '七'; toast('幸运数字 7!', '🍀'); }
+  else if (count === 42) { counterEl.textContent = '42'; showOverlay('生命、宇宙以及一切的终极答案', '就是 42。—— 道格拉斯·亚当斯《银河系漫游指南》'); }
+  else if (count === 69) { toast('nice.', '😏'); counterEl.textContent = count; }
+  else if (count === 100) { toast('你真的点了 100 下? 佩服!', '🏆'); counterEl.textContent = '💯'; }
+  else if (count % 13 === 0 && count > 0) { counterEl.textContent = count + randInt(-2, 2); }
+  else { counterEl.textContent = count; }
+});
+
+/* ============================================================
+   6. 魔法8号球
+   ============================================================ */
+const eightAnswers = ['毫无疑问','是的,一定','大概率如此','看起来不错','再问问','现在不好说','别指望了','我的回答是不','不可能','绝对是的','你知道答案的','我选择沉默'];
+const ball = $('#eightBall'), win = $('#eightWindow');
+function shakeBall() {
+  ball.classList.add('shake');
+  win.textContent = '...';
+  setTimeout(() => { win.textContent = eightAnswers[randInt(0, eightAnswers.length - 1)]; ball.classList.remove('shake'); }, 600);
+}
+ball.addEventListener('click', shakeBall);
+$('#eightBtn').addEventListener('click', shakeBall);
+
+/* ============================================================
+   7. 无限调色板
+   ============================================================ */
+const paletteEl = $('#palette');
+function genPalette() {
+  paletteEl.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const h = randInt(0,360), s = randInt(50,90), l = randInt(40,70);
+    const color = `hsl(${h},${s}%,${l}%)`;
+    const div = document.createElement('div');
+    div.style.background = color; div.title = color;
+    div.addEventListener('click', () => { navigator.clipboard?.writeText(color); toast(`已复制 ${color}`, '🎨'); });
+    paletteEl.appendChild(div);
+  }
+}
+genPalette();
+$('#paletteBtn').addEventListener('click', genPalette);
+
+/* ============================================================
+   8. 光标动物园
+   ============================================================ */
+const cursorModes = ['default','rainbow','trail','glove','none'];
+let cursorModeIdx = 0;
+let rainbowInterval;
+$('#cursorZooBtn').addEventListener('click', () => {
+  cursorModeIdx = (cursorModeIdx + 1) % cursorModes.length;
+  const mode = cursorModes[cursorModeIdx];
+  clearInterval(rainbowInterval);
+  if (mode === 'rainbow') {
+    let hue = 0;
+    rainbowInterval = setInterval(() => {
+      if (cursorModes[cursorModeIdx] !== 'rainbow') { clearInterval(rainbowInterval); return; }
+      hue = (hue + 5) % 360;
+      dot.style.background = `hsl(${hue},100%,60%)`;
+      ring.style.borderColor = `hsl(${hue + 180},100%,60%)`;
+    }, 50);
+    toast('彩虹光标!', '🌈');
+  } else if (mode === 'trail') {
+    toast('拖尾光标!', '✨');
+  } else if (mode === 'none') {
+    dot.style.opacity = '0'; ring.style.opacity = '0';
+    toast('光标隐身了!', '👻');
+  } else if (mode === 'glove') {
+    document.body.classList.add('glove-cursor');
+    dot.style.opacity = ''; ring.style.opacity = '';
+    dot.style.background = '#fff'; ring.style.borderColor = '#fff';
+    toast('白手套模式 · MJ 经典!', '🧤');
+  } else {
+    document.body.classList.remove('glove-cursor');
+    dot.style.opacity = ''; ring.style.opacity = '';
+    dot.style.background = ''; ring.style.borderColor = '';
+    toast('恢复默认光标', '🖱️');
+  }
+});
+document.addEventListener('pointermove', (e) => {
+  if (cursorModes[cursorModeIdx] !== 'trail') return;
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;width:6px;height:6px;border-radius:50%;background:var(--accent-2);pointer-events:none;z-index:99997;transition:all .6s;`;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => { t.style.opacity = '0'; t.style.transform = 'scale(0)'; });
+  setTimeout(() => t.remove(), 600);
+});
+
+/* ============================================================
+   9. 文字乱码
+   ============================================================ */
+const scrambleChars = '!<>-_\\/[]{}—=+*^?#________ABCDEFG0123456789';
+const scrambleTarget = $('#scrambleText');
+const originalText = 'TAP ME';
+let scrambleInterval;
+function runScramble() {
+  let iter = 0;
+  clearInterval(scrambleInterval);
+  scrambleInterval = setInterval(() => {
+    scrambleTarget.textContent = originalText.split('').map((c, i) =>
+      i < iter ? c : scrambleChars[randInt(0, scrambleChars.length - 1)]
+    ).join('');
+    iter += 1 / 3;
+    if (iter >= originalText.length) { scrambleTarget.textContent = originalText; clearInterval(scrambleInterval); }
+  }, 40);
+}
+scrambleTarget.addEventListener('click', runScramble);
+scrambleTarget.addEventListener('pointerenter', runScramble);
+
+/* ============================================================
+   10. 神秘按钮
+   ============================================================ */
+let mysteryClicks = 0;
+$('#mysteryBtn').addEventListener('click', () => {
+  mysteryClicks++;
+  const msgs = ['我说了不要点。','你还点?','认真的吗?','好吧,你赢了。','给你看个东西。'];
+  if (mysteryClicks < msgs.length) { toast(msgs[mysteryClicks - 1], '🙄'); }
+  else { showOverlay('🎉 恭喜你, 好奇心冠军!', '你找到了「不要点」按钮背后的秘密。其实也没什么, 就是佩服你的坚持。'); mysteryClicks = 0; }
+});
+
+/* ============================================================
+   新实验 A: 像素画板
+   ============================================================ */
+const pixelColors = ['#1a1a2e','#ffffff','#ff4444','#ff9900','#ffee00','#33cc55','#3388ff','#aa55ff','#ff66aa','#55eedd'];
+let currentPixelColor = '#1a1a2e';
+const pixelPalette = $('#pixelPalette');
+const pixelGrid = $('#pixelGrid');
+let isPainting = false;
+pixelColors.forEach((c, i) => {
+  const sw = document.createElement('div');
+  sw.className = 'pixel-swatch' + (i === 0 ? ' active' : '');
+  sw.style.background = c;
+  sw.addEventListener('click', () => {
+    currentPixelColor = c;
+    $$('.pixel-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+  });
+  pixelPalette.appendChild(sw);
+});
+for (let i = 0; i < 256; i++) {
+  const cell = document.createElement('div');
+  cell.className = 'pixel-cell';
+  cell.addEventListener('pointerdown', (e) => { isPainting = true; cell.style.background = currentPixelColor; e.preventDefault(); });
+  pixelGrid.appendChild(cell);
+}
+// 拖动连续绘画：pointermove + elementFromPoint（兼容触摸和鼠标）
+pixelGrid.addEventListener('pointermove', (e) => {
+  if (!isPainting) return;
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  if (target && target.classList.contains('pixel-cell')) {
+    target.style.background = currentPixelColor;
+  }
+});
+document.addEventListener('pointerup', () => { isPainting = false; });
+$('#pixelClear').addEventListener('click', () => { $$('.pixel-cell').forEach(c => c.style.background = ''); });
+
+/* ============================================================
+   新实验 B: 重力沙盒
+   ============================================================ */
+const gravCanvas = $('#gravityCanvas');
+const gravCtx = gravCanvas.getContext('2d');
+let gravBalls = [];
+function resizeGravCanvas() {
+  const r = gravCanvas.getBoundingClientRect();
+  gravCanvas.width = r.width * (window.devicePixelRatio || 1);
+  gravCanvas.height = r.height * (window.devicePixelRatio || 1);
+}
+resizeGravCanvas();
+window.addEventListener('resize', resizeGravCanvas);
+function spawnBall(x, y) {
+  const hue = randInt(0, 360);
+  gravBalls.push({ x, y, vx: randInt(-3, 3), vy: randInt(-5, -1), r: randInt(5, 13), color: `hsl(${hue},80%,60%)` });
+  if (gravBalls.length > 50) gravBalls.shift();
+}
+gravCanvas.addEventListener('pointerdown', (e) => {
+  const r = gravCanvas.getBoundingClientRect();
+  spawnBall(e.clientX - r.left, e.clientY - r.top);
+});
+$('#gravityClear').addEventListener('click', () => { gravBalls = []; });
+function gravLoop() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = gravCanvas.width / dpr, h = gravCanvas.height / dpr;
+  gravCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  gravCtx.clearRect(0, 0, w, h);
+  gravBalls.forEach(b => {
+    b.vy += 0.35; b.vx *= 0.99;
+    b.x += b.vx; b.y += b.vy;
+    if (b.x - b.r < 0) { b.x = b.r; b.vx *= -0.9; }
+    if (b.x + b.r > w) { b.x = w - b.r; b.vx *= -0.9; }
+    if (b.y + b.r > h) { b.y = h - b.r; b.vy *= -0.85; b.vx *= 0.95; }
+    gravCtx.beginPath(); gravCtx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    gravCtx.fillStyle = b.color; gravCtx.fill();
+    gravCtx.beginPath(); gravCtx.arc(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.3, 0, Math.PI * 2);
+    gravCtx.fillStyle = 'rgba(255,255,255,.35)'; gravCtx.fill();
+  });
+  // 球与球碰撞：弹性碰撞 + 分离重叠
+  for (let i = 0; i < gravBalls.length; i++) {
+    for (let j = i + 1; j < gravBalls.length; j++) {
+      const a = gravBalls[i], b = gravBalls[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = a.r + b.r;
+      if (dist < minDist && dist > 0) {
+        const nx = dx / dist, ny = dy / dist;
+        const overlap = (minDist - dist) / 2;
+        a.x -= nx * overlap; a.y -= ny * overlap;
+        b.x += nx * overlap; b.y += ny * overlap;
+        const dvx = b.vx - a.vx, dvy = b.vy - a.vy;
+        const dot = dvx * nx + dvy * ny;
+        if (dot < 0) {
+          const impulse = dot * 0.9;
+          a.vx += impulse * nx; a.vy += impulse * ny;
+          b.vx -= impulse * nx; b.vy -= impulse * ny;
+        }
+      }
+    }
+  }
+  requestAnimationFrame(gravLoop);
+}
+gravLoop();
+
+/* ============================================================
+   新实验 C: 二进制时钟
+   ============================================================ */
+const binaryClock = $('#binaryClock');
+const binCols = [];
+const bitValues = [8, 4, 2, 1];
+const digitLabels = ['H','H','M','M','S','S'];
+for (let i = 0; i < 6; i++) {
+  if (i === 2 || i === 4) {
+    const sep = document.createElement('div');
+    sep.className = 'binary-sep';
+    sep.innerHTML = '<span></span><span></span>';
+    binaryClock.appendChild(sep);
+  }
+  const col = document.createElement('div');
+  col.className = 'binary-col';
+  const bits = [];
+  bitValues.forEach(v => {
+    const bit = document.createElement('div');
+    bit.className = 'binary-bit';
+    col.appendChild(bit);
+    bits.push(bit);
+  });
+  const label = document.createElement('div');
+  label.className = 'binary-label';
+  label.textContent = digitLabels[i];
+  col.appendChild(label);
+  binaryClock.appendChild(col);
+  binCols.push(bits);
+}
+function updateBinaryClock() {
+  const now = new Date();
+  const digits = [
+    Math.floor(now.getHours() / 10), now.getHours() % 10,
+    Math.floor(now.getMinutes() / 10), now.getMinutes() % 10,
+    Math.floor(now.getSeconds() / 10), now.getSeconds() % 10
+  ];
+  digits.forEach((d, ci) => {
+    binCols[ci].forEach((bit, bi) => bit.classList.toggle('on', !!(d & bitValues[bi])));
+  });
+}
+updateBinaryClock();
+setInterval(updateBinaryClock, 1000);
+
+/* ============================================================
+   新实验 D: 节拍音序器
+   ============================================================ */
+const seqTracks = [
+  { freq: 120, type: 'sine', decay: 0.15, color: '#ff4466' },
+  { freq: 200, type: 'triangle', decay: 0.1, color: '#ffaa00' },
+  { freq: 8000, type: 'square', decay: 0.03, color: '#44ddff' },
+  { freq: 1500, type: 'sawtooth', decay: 0.08, color: '#aa66ff' }
+];
+const SEQ_STEPS = 16;
+let seqPattern = Array.from({length: 4}, () => Array(SEQ_STEPS).fill(false));
+let seqCurrentStep = 0;
+let seqPlaying = false;
+let seqTimer = null;
+let seqAudio = null;
+const seqGridEl = $('#seqGrid');
+for (let row = 0; row < 4; row++) {
+  for (let col = 0; col < SEQ_STEPS; col++) {
+    const cell = document.createElement('div');
+    cell.className = 'seq-cell';
+    cell.dataset.row = row; cell.dataset.col = col;
+    cell.addEventListener('click', () => {
+      seqPattern[row][col] = !seqPattern[row][col];
+      cell.classList.toggle('on', seqPattern[row][col]);
+      cell.style.background = seqPattern[row][col] ? seqTracks[row].color : '';
+    });
+    seqGridEl.appendChild(cell);
+  }
+}
+function playSeqSound(idx) {
+  if (!seqAudio) seqAudio = new (window.AudioContext || window.webkitAudioContext)();
+  const t = seqAudio.currentTime;
+  const osc = seqAudio.createOscillator();
+  const gain = seqAudio.createGain();
+  const tr = seqTracks[idx];
+  osc.type = tr.type;
+  osc.frequency.setValueAtTime(tr.freq, t);
+  if (idx === 0) osc.frequency.exponentialRampToValueAtTime(40, t + tr.decay);
+  gain.gain.setValueAtTime(0.25, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + tr.decay);
+  osc.connect(gain); gain.connect(seqAudio.destination);
+  osc.start(t); osc.stop(t + tr.decay);
+}
+function seqTick() {
+  $$('.seq-cell').forEach(c => c.classList.remove('current'));
+  for (let row = 0; row < 4; row++) {
+    const cell = seqGridEl.querySelector(`[data-row="${row}"][data-col="${seqCurrentStep}"]`);
+    if (cell) cell.classList.add('current');
+    if (seqPattern[row][seqCurrentStep]) playSeqSound(row);
+  }
+  seqCurrentStep = (seqCurrentStep + 1) % SEQ_STEPS;
+}
+$('#seqPlay').addEventListener('click', () => {
+  seqPlaying = !seqPlaying;
+  $('#seqPlay').textContent = seqPlaying ? '⏸ 暂停' : '▶ 播放';
+  if (seqPlaying) {
+    if (!seqAudio) seqAudio = new (window.AudioContext || window.webkitAudioContext)();
+    if (seqAudio.state === 'suspended') seqAudio.resume();
+    seqTimer = setInterval(seqTick, 125);
+  } else {
+    clearInterval(seqTimer);
+    $$('.seq-cell').forEach(c => c.classList.remove('current'));
+  }
+});
+$('#seqClear').addEventListener('click', () => {
+  seqPattern = Array.from({length: 4}, () => Array(SEQ_STEPS).fill(false));
+  $$('.seq-cell').forEach(c => { c.classList.remove('on'); c.style.background = ''; });
+});
+
+/* ============================================================
+   11. 绝对不要按的按钮
+   ============================================================ */
+let dontPressClicks = 0;
+$('#dontPressBtn').addEventListener('click', () => {
+  dontPressClicks++;
+  if (dontPressClicks === 1) toast('你按了。我告诉过你不要按。', '😤');
+  else if (dontPressClicks === 3) {
+    toast('三次了。你是不是故意的?', '🤨');
+    document.body.style.transform = 'rotate(180deg)';
+    document.body.style.transition = 'transform 1s';
+    setTimeout(() => { document.body.style.transform = ''; }, 1500);
+  } else if (dontPressClicks >= 5) {
+    document.body.classList.add('disco');
+    toast('迪斯科模式启动! 再按一次停止', '🕺');
+  }
+  if (dontPressClicks >= 6) {
+    document.body.classList.remove('disco'); dontPressClicks = 0;
+    toast('好了好了, 停下来了', '😮‍💨');
+  }
+});
+
+/* ============================================================
+   12. Canvas 粒子系统
+   ============================================================ */
+const pCanvas = $('#particle-canvas');
+const pCtx = pCanvas.getContext('2d');
+const pDPR = window.devicePixelRatio || 1;
+let particles = [];
+function resizeCanvas() { pCanvas.width = pCanvas.offsetWidth * pDPR; pCanvas.height = pCanvas.offsetHeight * pDPR; }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+class Particle {
+  constructor(x, y) {
+    this.x = x ?? rand(0, pCanvas.offsetWidth);
+    this.y = y ?? rand(0, pCanvas.offsetHeight);
+    this.vx = rand(-1, 1); this.vy = rand(-1, 1);
+    this.r = rand(2, 5); this.hue = randInt(200, 320);
+  }
+  update(mx, my) {
+    if (mx != null) {
+      const dx = mx - this.x, dy = my - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 150) { this.vx += dx / dist * 0.3; this.vy += dy / dist * 0.3; }
+    }
+    this.vx *= 0.97; this.vy *= 0.97;
+    this.x += this.vx; this.y += this.vy;
+    if (this.x < 0 || this.x > pCanvas.offsetWidth) this.vx *= -1;
+    if (this.y < 0 || this.y > pCanvas.offsetHeight) this.vy *= -1;
+  }
+  draw() {
+    pCtx.beginPath();
+    pCtx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    pCtx.fillStyle = `hsla(${this.hue},80%,65%,0.8)`;
+    pCtx.fill();
+  }
+}
+for (let i = 0; i < 80; i++) particles.push(new Particle());
+
+let pPointerX = null, pPointerY = null;
+function getCanvasPos(e) {
+  const r = pCanvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+pCanvas.addEventListener('pointermove', (e) => {
+  const pos = getCanvasPos(e); pPointerX = pos.x; pPointerY = pos.y;
+});
+pCanvas.addEventListener('pointerleave', () => { pPointerX = null; pPointerY = null; });
+pCanvas.addEventListener('pointerup', (e) => {
+  const pos = getCanvasPos(e);
+  for (let i = 0; i < 20; i++) {
+    const p = new Particle(pos.x, pos.y);
+    p.vx = rand(-5, 5); p.vy = rand(-5, 5);
+    particles.push(p);
+  }
+  if (particles.length > 200) particles.splice(0, 20);
+});
+let pLongPress;
+pCanvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  pLongPress = setTimeout(() => {
+    toast('长按 detected! 粒子大爆发!', '💥');
+    for (let i = 0; i < 50; i++) particles.push(new Particle(rand(0, pCanvas.offsetWidth), rand(0, pCanvas.offsetHeight)));
+  }, 800);
+});
+pCanvas.addEventListener('pointerup', () => clearTimeout(pLongPress));
+pCanvas.addEventListener('pointercancel', () => clearTimeout(pLongPress));
+
+function animateParticles() {
+  pCtx.setTransform(pDPR, 0, 0, pDPR, 0, 0);
+  pCtx.fillStyle = 'rgba(10,10,15,0.15)';
+  pCtx.fillRect(0, 0, pCanvas.offsetWidth, pCanvas.offsetHeight);
+  particles.forEach(p => { p.update(pPointerX, pPointerY); p.draw(); });
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 80) {
+        pCtx.beginPath();
+        pCtx.moveTo(particles[i].x, particles[i].y);
+        pCtx.lineTo(particles[j].x, particles[j].y);
+        pCtx.strokeStyle = `rgba(124,92,255,${0.3 * (1 - dist / 80)})`;
+        pCtx.lineWidth = 0.5; pCtx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+/* ============================================================
+   彩蛋系统
+   ============================================================ */
+const foundEggs = new Set();
+function findEgg(id, msg, icon = '🥚') {
+  if (!foundEggs.has(id)) { foundEggs.add(id); toast(msg, icon); updateEggCount(); }
+}
+function updateEggCount() { $('#eggCount').textContent = foundEggs.size; }
+updateEggCount();
+
+/* ============================================================
+   彩蛋 1: Konami 码
+   ============================================================ */
+const konami = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+let konamiIdx = 0;
+function checkKonami(key) {
+  const k = key.length === 1 ? key.toLowerCase() : key;
+  if (k === konami[konamiIdx]) {
+    konamiIdx++;
+    // 进度反馈: 高亮当前按下的 dpad 按钮
+    const pressed = document.querySelector(`.dpad-btn[data-key="${key}"]`);
+    if (pressed) { pressed.style.background = 'var(--accent)'; setTimeout(() => pressed.style.background = '', 200); }
+    if (konamiIdx === konami.length) {
+      findEgg('konami', 'KONAMI 码! 你是真正的玩家!', '🎮');
+      triggerConfetti(); konamiIdx = 0;
+    }
+  } else {
+    konamiIdx = (k === konami[0]) ? 1 : 0;
+  }
+}
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest('input,textarea')) return;
+  checkKonami(e.key);
+});
+
+function triggerConfetti() {
+  for (let i = 0; i < 100; i++) {
+    const c = document.createElement('div');
+    c.style.cssText = `position:fixed;left:${rand(0,100)}vw;top:-20px;width:${randInt(6,12)}px;height:${randInt(8,16)}px;background:hsl(${randInt(0,360)},100%,60%);z-index:99996;pointer-events:none;border-radius:2px;`;
+    document.body.appendChild(c);
+    const dur = rand(2, 4);
+    c.animate([
+      { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
+      { transform: `translateY(110vh) rotate(${randInt(360,1080)}deg)`, opacity: 0 }
+    ], { duration: dur * 1000, easing: 'cubic-bezier(.2,.6,.4,1)' });
+    setTimeout(() => c.remove(), dur * 1000);
+  }
+}
+
+/* ============================================================
+   彩蛋 2: 打字检测
+   ============================================================ */
+let typedBuffer = '';
+function feedText(text) {
+  typedBuffer = (typedBuffer + text.toLowerCase()).slice(-20);
+  checkTypedEggs();
+}
+function checkTypedEggs() {
+  if (typedBuffer.endsWith('hello')) { findEgg('hello', '你好呀! 👋 欢迎来到游乐场!', '👋'); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('matrix')) { findEgg('matrix', 'Welcome to the Matrix...', '💚'); startMatrix(); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('rick')) { findEgg('rick', 'Never gonna give you up! 🎵', '🎤'); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('moonwalk')) { findEgg('mj-moonwalk', '月球漫步! The King of Pop 👑', '🕺'); triggerFullMoonwalk(); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('michael') || typedBuffer.endsWith('jackson')) { findEgg('mj-tribute', 'Michael Jackson · 1958.8.29—2009.6.25 · 永远的流行音乐之王 👑', '👑'); triggerMJTribute(); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('thriller')) { findEgg('mj-thriller', 'Cause this is thriller, thriller night! 🧟', '🎃'); triggerThriller(); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('billiejean')) { findEgg('mj-billiejean', 'Billie Jean is not my lover... 地板亮了! 💃', '🟦'); triggerBillieJean(); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('smoothcriminal')) { findEgg('mj-smooth', 'Annie, are you OK? 45度倾斜! 🕴️', '🎩'); triggerLean45(); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('beatit')) { findEgg('mj-beatit', 'Just beat it, beat it! No one wants to be defeated! 🥊', '⚡'); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('mj')) { findEgg('mj-quick', '👑 The King of Pop', '👑'); triggerFullMoonwalk(); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('light')) { document.body.classList.add('light'); findEgg('lightmode', '亮色模式开启!', '☀️'); typedBuffer = ''; }
+  else if (typedBuffer.endsWith('dark')) { document.body.classList.remove('light'); findEgg('darkmode', '暗色模式开启!', '🌙'); typedBuffer = ''; }
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key.length === 1 && !e.target.closest('input,textarea')) feedText(e.key);
+});
+
+/* ============================================================
+   彩蛋 3: Matrix 雨
+   ============================================================ */
+const mCanvas = $('#matrix-canvas');
+const mCtx = mCanvas.getContext('2d');
+const mDPR = window.devicePixelRatio || 1;
+let matrixActive = false, matrixRAF;
+function startMatrix() {
+  if (matrixActive) return;
+  matrixActive = true;
+  mCanvas.classList.add('show');
+  mCanvas.width = window.innerWidth * mDPR; mCanvas.height = window.innerHeight * mDPR;
+  mCtx.setTransform(mDPR, 0, 0, mDPR, 0, 0);
+  const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF';
+  const fontSize = 16;
+  const cols = Math.floor(window.innerWidth / fontSize);
+  const drops = Array(cols).fill(1);
+  function draw() {
+    mCtx.fillStyle = 'rgba(0,0,0,0.05)';
+    mCtx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    mCtx.fillStyle = '#0f0'; mCtx.font = fontSize + 'px monospace';
+    drops.forEach((y, i) => {
+      mCtx.fillText(chars[randInt(0, chars.length - 1)], i * fontSize, y * fontSize);
+      if (y * fontSize > window.innerHeight && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    });
+    matrixRAF = requestAnimationFrame(draw);
+  }
+  draw();
+  setTimeout(() => {
+    matrixActive = false; cancelAnimationFrame(matrixRAF);
+    mCanvas.classList.remove('show'); mCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  }, 6000);
+}
+
+/* ============================================================
+   彩蛋 4: 长按页面 3 秒
+   ============================================================ */
+let pageLongPress;
+document.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('button,a,input,textarea,canvas,.card,[data-tilt],.egg-console')) return;
+  pageLongPress = setTimeout(() => {
+    findEgg('longpress', '长按彩蛋! 迪斯科时间!', '🪩');
+    document.body.classList.add('disco');
+    setTimeout(() => document.body.classList.remove('disco'), 4000);
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+  }, 3000);
+});
+document.addEventListener('pointerup', () => clearTimeout(pageLongPress));
+document.addEventListener('pointercancel', () => clearTimeout(pageLongPress));
+document.addEventListener('pointermove', () => clearTimeout(pageLongPress));
+
+/* ============================================================
+   彩蛋 5: 四角 (Pointer 位置)
+   ============================================================ */
+const cornersFound = new Set();
+function getCornerZones() {
+  const w = window.innerWidth, h = window.innerHeight;
+  return {
+    tl: { x1: 0, y1: 60, x2: 60, y2: 120 },
+    tr: { x1: w - 60, y1: 60, x2: w, y2: 120 },
+    bl: { x1: 0, y1: h - 60, x2: 60, y2: h },
+    br: { x1: w - 60, y1: h - 60, x2: w, y2: h }
+  };
+}
+document.addEventListener('pointermove', (e) => {
+  const zones = getCornerZones();
+  for (const [name, z] of Object.entries(zones)) {
+    if (e.clientX >= z.x1 && e.clientX <= z.x2 && e.clientY >= z.y1 && e.clientY <= z.y2) {
+      if (!cornersFound.has(name)) {
+        cornersFound.add(name);
+        const el = document.querySelector(`.corner-egg[data-corner="${name}"]`);
+        if (el) { el.classList.add('found'); el.style.color = 'var(--accent-2)'; }
+        if (cornersFound.size === 4) findEgg('corners', '四角秘密全部发现!', '🔲');
+      }
+    }
+  }
+});
+
+/* ============================================================
+   彩蛋 6: F 键
+   ============================================================ */
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'f' && !e.target.closest('input,textarea')) {
+    findEgg('fkey', 'F 已按下, 敬意已收到.', '🫡');
+    dropFs();
+  }
+});
+function dropFs() {
+  for (let i = 0; i < 8; i++) {
+    const f = document.createElement('div');
+    f.textContent = 'F';
+    f.style.cssText = `position:fixed;left:${rand(0,100)}vw;top:-30px;font-size:2rem;font-weight:900;color:var(--accent-3);z-index:99996;pointer-events:none;`;
+    document.body.appendChild(f);
+    f.animate([
+      { transform: 'translateY(0) rotate(0)', opacity: 1 },
+      { transform: `translateY(110vh) rotate(${randInt(-180,180)}deg)`, opacity: 0 }
+    ], { duration: rand(1.5, 3) * 1000, easing: 'ease-in' });
+    setTimeout(() => f.remove(), 3000);
+  }
+}
+
+/* ============================================================
+   彩蛋 7: 空格键
+   ============================================================ */
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && !e.target.closest('input,textarea,#dinoCanvas')) {
+    const _dino = document.getElementById('dinoCanvas');
+    const _r = _dino ? _dino.getBoundingClientRect() : null;
+    const _dinoInView = _r && _r.top < window.innerHeight && _r.bottom > 0;
+    if (!_dinoInView) {
+      e.preventDefault();
+      findEgg('space', '空格彩带!', '🎉');
+      triggerConfetti();
+    }
+  }
+});
+
+/* ============================================================
+   彩蛋 8: 右键菜单 (桌面右键 + 双指触摸 + 控制台)
+   ============================================================ */
+const ctxMenu = $('#contextMenu');
+function openContextMenu(x, y) {
+  findEgg('rightclick', '你发现了自定义菜单!', '🖱️');
+  const menuW = 200, menuH = 200;
+  x = Math.min(x, window.innerWidth - menuW);
+  y = Math.min(y, window.innerHeight - menuH);
+  ctxMenu.style.left = x + 'px'; ctxMenu.style.top = y + 'px';
+  ctxMenu.classList.add('show');
+}
+document.addEventListener('contextmenu', (e) => { e.preventDefault(); openContextMenu(e.clientX, e.clientY); });
+let twoFingerTimer;
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    const t = e.touches[0];
+    clearTimeout(twoFingerTimer);
+    twoFingerTimer = setTimeout(() => openContextMenu(t.clientX, t.clientY), 200);
+  }
+}, { passive: false });
+document.addEventListener('touchend', () => clearTimeout(twoFingerTimer));
+document.addEventListener('pointerdown', (e) => {
+  if (!e.target.closest('.context-menu')) ctxMenu.classList.remove('show');
+});
+ctxMenu.addEventListener('click', (e) => {
+  const action = e.target.closest('.context-menu-item')?.dataset.action;
+  if (action === 'secret') { findEgg('ctx-secret', '神秘选项被选中!', '🔮'); showOverlay('神秘选项', '你永远不知道下一个选项里藏着什么。就像人生。'); }
+  if (action === 'easteregg') { findEgg('ctx-egg', '找彩蛋? 你找到了!', '🥚'); toast('这个页面有超过 20 个彩蛋, 继续找吧!', '🗺️'); }
+  if (action === 'copy') toast('已复制 (假的)', '📋');
+  if (action === 'inspect') toast('开发者工具已打开 (假的)', '🔧');
+});
+
+/* ============================================================
+   彩蛋 9: 控制台
+   ============================================================ */
+console.log(`%c🥚 你找到了控制台彩蛋!%c\n这个页面藏了很多秘密, 你已经发现了一个。\n输入 %chelp()%c 看看有什么命令。`, 'font-size:20px;font-weight:bold;', 'font-size:12px;', 'background:#7c5cff;color:#fff;padding:2px 6px;border-radius:4px;', 'font-size:12px;');
+window.help = () => '可用命令: help(), eggs(), surprise(), matrix(), disco(), mj()';
+window.eggs = () => `已发现 ${foundEggs.size} 个彩蛋, 继续探索!`;
+window.surprise = () => { triggerConfetti(); return '🎉 惊喜!'; };
+window.mj = () => { triggerMJTribute(); return '👑 The King of Pop · Michael Jackson'; };
+
+/* ============================================================
+   MJ 致敬交互逻辑
+   ============================================================ */
+const mjLyrics = [
+  '"Billie Jean is not my lover" — Billie Jean, 1982',
+  '"Cause this is thriller, thriller night" — Thriller, 1982',
+  '"Annie, are you OK?" — Smooth Criminal, 1987',
+  '"Just beat it, beat it!" — Beat It, 1982',
+  '"I\'m starting with the man in the mirror" — Man in the Mirror, 1987',
+  '"Heal the world, make it a better place" — Heal the World, 1991',
+  '"You are not alone" — You Are Not Alone, 1995',
+  '"Don\'t stop \'til you get enough" — 1979',
+  '"The way you make me feel" — 1987',
+  '"Remember the time" — Dangerous, 1991',
+  '"Black or white" — Dangerous, 1991',
+  '"They don\'t care about us" — HIStory, 1995',
+];
+let mjClickCount = 0;
+const mjFigure = $('#mjFigure');
+const mjLyric = $('#mjLyric');
+const mjFloor = $('#mjFloor');
+const mjStage = $('#mjStage');
+
+// 生成 Billie Jean 发光地板瓷砖
+for (let i = 0; i < 10; i++) {
+  const tile = document.createElement('div');
+  tile.className = 'mj-tile';
+  mjFloor.appendChild(tile);
+}
+const mjTiles = mjFloor.querySelectorAll('.mj-tile');
+
+function lightFloor() {
+  mjTiles.forEach((t, i) => {
+    setTimeout(() => {
+      t.classList.add('lit');
+      setTimeout(() => t.classList.remove('lit'), 400);
+    }, i * 80);
+  });
+}
+
+mjStage.addEventListener('click', () => {
+  mjClickCount++;
+  // 随机歌词
+  mjLyric.style.opacity = '0';
+  setTimeout(() => {
+    mjLyric.textContent = mjLyrics[Math.floor(Math.random() * mjLyrics.length)];
+    mjLyric.style.opacity = '1';
+  }, 200);
+  lightFloor();
+
+  // 月球漫步
+  mjFigure.classList.remove('moonwalking');
+  void mjFigure.offsetWidth; // reflow
+  mjFigure.classList.add('moonwalking');
+  setTimeout(() => {
+    mjFigure.classList.remove('moonwalking');
+    mjFigure.style.left = '10px';
+  }, 2800);
+
+  // 连点 5 次 → 旋转 + 脚尖
+  if (mjClickCount === 5) {
+    findEgg('mj-spin', '连点5次! MJ 旋转 + 脚尖站立! 🌀', '🌀');
+    mjFigure.classList.add('spinning');
+    setTimeout(() => mjFigure.classList.remove('spinning'), 800);
+    setTimeout(() => {
+      mjFigure.classList.add('tiptoe');
+      setTimeout(() => mjFigure.classList.remove('tiptoe'), 1000);
+    }, 400);
+  }
+  // 连点 10 次 → 45度倾斜
+  if (mjClickCount === 10) {
+    findEgg('mj-lean', '连点10次! Smooth Criminal 45度倾斜! 🕴️', '🎩');
+    mjFigure.classList.add('leaning');
+    setTimeout(() => mjFigure.classList.remove('leaning'), 2000);
+    mjClickCount = 0; // 重置
+  }
+});
+
+// 全屏月球漫步
+const MJ_SVG = `<svg viewBox="0 0 80 140" xmlns="http://www.w3.org/2000/svg">
+  <defs><filter id="mjGlow2" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <g class="thigh thigh-l"><path d="M28 77 L34 77 L32 95 L26 95 Z" fill="#0b0b0b"/><g class="calf calf-l"><path d="M26 95 L32 95 L30 110 L24 110 Z" fill="#0b0b0b"/><path d="M24 108 L30 108 L29 113 L23 113 Z" fill="#fff"/><circle cx="26" cy="111" r="1.2" fill="#fff" opacity=".9"/><ellipse cx="26" cy="114" rx="6.5" ry="3.2" fill="#060606"/><ellipse cx="28" cy="113" rx="2.2" ry="1" fill="#2a2a2a"/></g></g>
+  <g class="thigh thigh-r"><path d="M42 77 L48 77 L50 93 L44 93 Z" fill="#0b0b0b"/><g class="calf calf-r"><path d="M44 93 L50 93 L53 105 L47 105 Z" fill="#0b0b0b"/><path d="M47 103 L53 103 L54 108 L48 108 Z" fill="#fff"/><circle cx="51" cy="106" r="1.2" fill="#fff" opacity=".9"/><ellipse cx="51" cy="109" rx="6.5" ry="3.2" fill="#060606"/><ellipse cx="53" cy="108" rx="2.2" ry="1" fill="#2a2a2a"/></g></g>
+  <path d="M25 42 L19 72 L24 76 L52 76 L57 72 L51 42 Z" fill="#0b0b0b"/>
+  <path d="M31 42 L38 54 L45 42" stroke="#1f1f1f" stroke-width="1.8" fill="none"/>
+  <line x1="27" y1="57" x2="32" y2="57" stroke="#1f1f1f" stroke-width="1.2"/>
+  <line x1="44" y1="57" x2="49" y2="57" stroke="#1f1f1f" stroke-width="1.2"/>
+  <rect x="21" y="74" width="34" height="3.5" fill="#1a1a1a"/>
+  <rect x="36" y="74" width="4.5" height="3.5" fill="#c9a84c"/>
+  <path d="M25 44 L15 56 L13 64 L18 66 L25 52 Z" fill="#0b0b0b"/>
+  <path d="M51 44 L60 53 L62 61 L57 63 L50 51 Z" fill="#0b0b0b"/>
+  <ellipse cx="62" cy="63" rx="5.5" ry="4.5" fill="#fff" filter="url(#mjGlow2)"/>
+  <path d="M65 61 L69 59 M66 63 L70 63 M65 65 L69 67" stroke="#e8e8e8" stroke-width="1.1" stroke-linecap="round"/>
+  <rect x="35" y="37" width="6" height="5" fill="#d4b896"/>
+  <ellipse cx="38" cy="29" rx="9" ry="10" fill="#d4b896"/>
+  <path d="M29 25 Q24 29 26 38 Q29 35 30 30 Z" fill="#1a1210"/>
+  <path d="M47 25 Q52 29 50 38 Q47 35 46 30 Z" fill="#1a1210"/>
+  <path d="M30 36 Q34 39 38 38 Q42 39 46 36" stroke="#1a1210" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="38" cy="20" rx="21" ry="4.5" fill="#080808"/>
+  <path d="M25 20 Q25 7 38 7 Q51 7 51 20 Z" fill="#080808"/>
+  <rect x="25" y="17" width="26" height="3.5" fill="#1a1a1a"/>
+</svg>`;
+function triggerFullMoonwalk() {
+  let el = document.querySelector('.mj-fullmoon');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'mj-fullmoon';
+    el.innerHTML = MJ_SVG;
+    document.body.appendChild(el);
+  }
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+}
+
+// MJ 全面致敬
+function triggerMJTribute() {
+  triggerFullMoonwalk();
+  triggerConfetti();
+  document.body.classList.add('glove-cursor');
+  setTimeout(() => document.body.classList.remove('glove-cursor'), 5000);
+  if (navigator.vibrate) navigator.vibrate([50, 30, 50, 30, 100]);
+}
+
+// Thriller 模式
+function triggerThriller() {
+  document.body.classList.add('thriller-mode');
+  // 僵尸走过
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => {
+      const z = document.createElement('div');
+      z.className = 'thriller-zombie';
+      z.textContent = ['🧟','🧟‍♂️','🧟‍♀️','💀','🕺'][i % 5];
+      z.style.bottom = (10 + Math.random() * 15) + '%';
+      z.style.animation = `zombieWalk ${3 + Math.random() * 2}s linear forwards`;
+      document.body.appendChild(z);
+      setTimeout(() => z.remove(), 5000);
+    }, i * 400);
+  }
+  setTimeout(() => document.body.classList.remove('thriller-mode'), 6000);
+}
+
+// Billie Jean 全屏发光地板
+function triggerBillieJean() {
+  let floor = document.querySelector('.billie-floor');
+  if (!floor) {
+    floor = document.createElement('div');
+    floor.className = 'billie-floor';
+    for (let i = 0; i < 20; i++) {
+      const t = document.createElement('div');
+      t.className = 'billie-tile';
+      floor.appendChild(t);
+    }
+    document.body.appendChild(floor);
+  }
+  floor.classList.add('show');
+  const tiles = floor.querySelectorAll('.billie-tile');
+  // 波浪式点亮
+  let wave = 0;
+  const waveInterval = setInterval(() => {
+    tiles.forEach((t, i) => {
+      if (i === wave % tiles.length) {
+        t.classList.add('lit');
+        setTimeout(() => t.classList.remove('lit'), 500);
+      }
+    });
+    wave++;
+    if (wave > 40) {
+      clearInterval(waveInterval);
+      setTimeout(() => floor.classList.remove('show'), 500);
+    }
+  }, 100);
+}
+
+// 45度倾斜
+function triggerLean45() {
+  mjFigure.classList.add('leaning');
+  setTimeout(() => mjFigure.classList.remove('leaning'), 2000);
+  // 同时全屏也倾斜一下
+  document.body.style.transition = 'transform 1s';
+  document.body.style.transform = 'rotate(3deg)';
+  setTimeout(() => { document.body.style.transform = ''; }, 1500);
+}
+
+// 纪念日自动致敬
+(function checkMJAnniversary() {
+  const now = new Date();
+  const m = now.getMonth() + 1, d = now.getDate();
+  if (m === 8 && d === 29) {
+    // 生日 1958.8.29
+    setTimeout(() => {
+      findEgg('mj-birthday', '今天是 MJ 生日! 1958.8.29 🎂 生日快乐, 流行音乐之王!', '🎂');
+      triggerMJTribute();
+    }, 4000);
+  } else if (m === 6 && d === 25) {
+    // 忌日 2009.6.25
+    setTimeout(() => {
+      findEgg('mj-rip', '2009.6.25 · 永远怀念 Michael Jackson 🕊️ 你从未离开', '🕊️');
+      triggerFullMoonwalk();
+    }, 4000);
+  }
+})();
+window.matrix = () => { startMatrix(); return '💚 Matrix 启动!'; };
+window.disco = () => { document.body.classList.add('disco'); setTimeout(()=>document.body.classList.remove('disco'),3000); return '🪩 迪斯科!'; };
+
+/* ============================================================
+   彩蛋 10: Logo 连点 7 次
+   ============================================================ */
+let logoClicks = 0;
+$('#logo').addEventListener('click', () => {
+  logoClicks++;
+  if (logoClicks === 7) {
+    findEgg('logo', 'Logo 连点 7 次! 彩虹模式!', '🌈');
+    document.body.style.filter = 'hue-rotate(180deg)';
+    setTimeout(() => document.body.style.filter = '', 3000);
+    logoClicks = 0;
+  }
+});
+
+/* ============================================================
+   彩蛋 11: 双击/双触标题可编辑
+   ============================================================ */
+$('#heroTitle').addEventListener('dblclick', () => {
+  findEgg('dblclick', '标题可以编辑!', '✏️');
+  $('#heroTitle').contentEditable = 'true'; $('#heroTitle').focus();
+});
+let heroTitleLastTap = 0;
+$('#heroTitle').addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - heroTitleLastTap < 300) {
+    e.preventDefault();
+    findEgg('dblclick', '标题可以编辑!', '✏️');
+    $('#heroTitle').contentEditable = 'true'; $('#heroTitle').focus();
+  }
+  heroTitleLastTap = now;
+});
+$('#heroTitle').addEventListener('blur', () => { $('#heroTitle').contentEditable = 'false'; });
+
+/* ============================================================
+   彩蛋 12: 滚动到底部 3 次
+   ============================================================ */
+let bottomCount = 0, bottomCooldown = false;
+window.addEventListener('scroll', () => {
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 50 && !bottomCooldown) {
+    bottomCount++; bottomCooldown = true;
+    setTimeout(() => bottomCooldown = false, 1000);
+    if (bottomCount === 3) {
+      findEgg('bottom', '你到底了 3 次! 隐藏信息出现了!', '⬇️');
+      $('#footerSecret').textContent = '>> 你找到了隐藏信息: 42 是一切的答案 <<';
+      $('#footerSecret').style.opacity = '1'; $('#footerSecret').style.color = 'var(--accent-2)';
+    }
+  }
+});
+
+/* ============================================================
+   彩蛋 14: 午夜访问
+   ============================================================ */
+const hour = new Date().getHours();
+if (hour >= 0 && hour < 5) {
+  setTimeout(() => findEgg('midnight', '深夜访客! 你是夜猫子吗?', '🌙'), 2000);
+}
+
+/* ============================================================
+   彩蛋 15: 离开标签页
+   ============================================================ */
+let hiddenTime = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) hiddenTime = Date.now();
+  else {
+    const away = Date.now() - hiddenTime;
+    if (away > 10000) findEgg('away', '你离开了 10 秒以上, 欢迎回来!', '👋');
+  }
+});
+
+/* ============================================================
+   彩蛋 16: 网络状态
+   ============================================================ */
+window.addEventListener('offline', () => toast('你离线了, 但彩蛋还在!', '📡'));
+window.addEventListener('online', () => toast('网络恢复!', '🌐'));
+
+/* ============================================================
+   彩蛋 17: 复制
+   ============================================================ */
+document.addEventListener('copy', () => findEgg('copy', '你复制了什么? 复制彩蛋 get!', '📋'));
+
+/* ============================================================
+   彩蛋 18: 开始探索
+   ============================================================ */
+$('#startBtn').addEventListener('click', () => {
+  document.getElementById('experiments').scrollIntoView({ behavior: 'smooth' });
+  toast('滚动吧, 探索者!', '🚀');
+});
+
+/* ============================================================
+   彩蛋 19: 摇一摇手机
+   ============================================================ */
+let lastShake = 0;
+let lastAcc = { x: 0, y: 0, z: 0 };
+function onDeviceMotion(e) {
+  // 优先用不含重力的加速度，回退到含重力
+  const acc = e.acceleration || e.accelerationIncludingGravity;
+  if (!acc || acc.x === null || acc.x === undefined) return;
+  const now = Date.now();
+  if (now - lastShake < 1000) return;
+  // 差分法：计算与上一帧的加速度变化量，自动消除重力常量
+  const delta = Math.sqrt(
+    (acc.x - lastAcc.x) ** 2 +
+    (acc.y - lastAcc.y) ** 2 +
+    (acc.z - lastAcc.z) ** 2
+  );
+  lastAcc = { x: acc.x, y: acc.y, z: acc.z };
+  if (delta > 15) {
+    lastShake = now;
+    findEgg('shake', '摇一摇! Shake your body down to the ground! 🕺', '📱');
+    triggerConfetti();
+    triggerFullMoonwalk();
+    if (navigator.vibrate) navigator.vibrate([50, 30, 50, 30, 100]);
+  }
+}
+function setupShake() {
+  window.addEventListener('devicemotion', onDeviceMotion);
+}
+// iOS 13+ 需用户授权：在首次触摸/点击时请求权限
+if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+  const requestMotionPerm = () => {
+    DeviceMotionEvent.requestPermission().then(state => {
+      if (state === 'granted') setupShake();
+    }).catch(() => {});
+  };
+  document.addEventListener('touchstart', requestMotionPerm, { once: true });
+  document.addEventListener('click', requestMotionPerm, { once: true });
+} else if (window.DeviceMotionEvent) {
+  // 安卓等设备直接启用
+  setupShake();
+}
+
+/* ============================================================
+   彩蛋 20: 捏合手势
+   ============================================================ */
+let initialPinchDist = 0;
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    initialPinchDist = Math.sqrt(dx * dx + dy * dy);
+  }
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2 && initialPinchDist > 0) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (Math.abs(dist - initialPinchDist) > 100) {
+      findEgg('pinch', '捏合手势! 画面缩放!', '🤏');
+      const scale = dist > initialPinchDist ? 1.2 : 0.8;
+      document.body.style.transition = 'transform .5s';
+      document.body.style.transform = `scale(${scale})`;
+      setTimeout(() => { document.body.style.transform = ''; }, 800);
+      initialPinchDist = 0;
+    }
+  }
+}, { passive: true });
+document.addEventListener('touchend', () => { initialPinchDist = 0; });
+
+/* ============================================================
+   移动端彩蛋控制台
+   ============================================================ */
+const consoleToggle = $('#eggConsoleToggle');
+const eggConsole = $('#eggConsole');
+const consoleClose = $('#eggConsoleClose');
+
+consoleToggle.addEventListener('click', () => {
+  eggConsole.classList.toggle('open');
+  consoleToggle.style.display = eggConsole.classList.contains('open') ? 'none' : 'flex';
+});
+consoleClose.addEventListener('click', () => {
+  eggConsole.classList.remove('open');
+  consoleToggle.style.display = 'flex';
+});
+
+const eggInput = $('#eggInput');
+$('#eggInputBtn').addEventListener('click', () => {
+  const val = eggInput.value.trim();
+  if (val) { feedText(val); eggInput.value = ''; }
+});
+eggInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('#eggInputBtn').click(); }
+});
+$$('.egg-suggestion').forEach(s => {
+  s.addEventListener('click', () => { eggInput.value = s.textContent; $('#eggInputBtn').click(); });
+});
+
+$$('.dpad-btn[data-key]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    checkKonami(btn.dataset.key);
+    btn.style.transform = 'scale(0.85)';
+    setTimeout(() => btn.style.transform = '', 100);
+  });
+});
+
+$$('.shortcut-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sc = btn.dataset.shortcut;
+    if (sc === 'f') { findEgg('fkey', 'F 已按下, 敬意已收到.', '🫡'); dropFs(); }
+    if (sc === 'space') { findEgg('space', '空格彩带!', '🎉'); triggerConfetti(); }
+    if (sc === 'rightclick') openContextMenu(window.innerWidth / 2, window.innerHeight / 2);
+    if (sc === 'longpress') {
+      findEgg('longpress', '长按彩蛋! 迪斯科时间!', '🪩');
+      document.body.classList.add('disco');
+      setTimeout(() => document.body.classList.remove('disco'), 4000);
+    }
+    if (sc === 'disco') {
+      document.body.classList.toggle('disco');
+      toast(document.body.classList.contains('disco') ? '迪斯科 ON!' : '迪斯科 OFF', '🕺');
+    }
+    if (sc === 'confetti') triggerConfetti();
+    if (sc === 'shake') {
+      findEgg('shake', '摇一摇! Shake your body down to the ground! 🕺', '📱');
+      triggerConfetti();
+      triggerFullMoonwalk();
+      if (navigator.vibrate) navigator.vibrate([50, 30, 50, 30, 100]);
+    }
+  });
+});
+
+/* ============================================================
+   新实验 1: 幸运骰子
+   ============================================================ */
+const diceFaces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+const diceEl = $('#dice');
+let diceRolling = false;
+$('#diceBtn').addEventListener('click', () => {
+  if (diceRolling) return;
+  diceRolling = true;
+  diceEl.classList.add('rolling');
+  let flickerCount = 0;
+  const flicker = setInterval(() => {
+    diceEl.textContent = diceFaces[randInt(0, 5)];
+    flickerCount++;
+    if (flickerCount >= 8) {
+      clearInterval(flicker);
+      const final = randInt(1, 6);
+      diceEl.textContent = diceFaces[final - 1];
+      diceEl.classList.remove('rolling');
+      diceRolling = false;
+      if (final === 6) toast('豹子! 六点大吉! 🍀', '🎲');
+      else if (final === 1) toast('一点… 再来一次?', '🎲');
+    }
+  }, 60);
+});
+
+/* ============================================================
+   新实验 2: 硬币翻转
+   ============================================================ */
+const coinEl = $('#coin');
+let coinFlipping = false;
+$('#coinBtn').addEventListener('click', () => {
+  if (coinFlipping) return;
+  coinFlipping = true;
+  // 先瞬间重置到正面（0度），强制重排，确保每次动画都从0度连贯开始
+  coinEl.style.transition = 'none';
+  coinEl.style.transform = 'rotateY(0deg)';
+  void coinEl.offsetWidth;
+  coinEl.style.transition = '';
+  coinEl.classList.add('flipping');
+  setTimeout(() => {
+    const isHead = Math.random() < 0.5;
+    coinEl.style.transform = isHead ? 'rotateY(0deg)' : 'rotateY(180deg)';
+    coinEl.classList.remove('flipping');
+    coinFlipping = false;
+    toast(isHead ? '正面! 好运当头!' : '反面! 也不错~', '🪙');
+  }, 1000);
+});
+
+/* ============================================================
+   新实验 3: 反应速度测试
+   ============================================================ */
+const reactionBox = $('#reactionBox');
+let reactionState = 'idle'; // idle, waiting, ready, result, tooSoon
+let reactionStartTime = 0;
+let reactionTimer = null;
+let bestReaction = Infinity;
+
+reactionBox.addEventListener('click', () => {
+  if (reactionState === 'tooSoon') return; // 抢跑惩罚期内忽略点击
+  if (reactionState === 'idle' || reactionState === 'result') {
+    reactionState = 'waiting';
+    reactionBox.className = 'reaction-box waiting';
+    reactionBox.textContent = '等待变绿… 别急!';
+    const delay = randInt(1500, 4000);
+    reactionTimer = setTimeout(() => {
+      reactionState = 'ready';
+      reactionBox.className = 'reaction-box ready';
+      reactionBox.textContent = '点! 快!';
+      reactionStartTime = performance.now();
+    }, delay);
+  } else if (reactionState === 'waiting') {
+    clearTimeout(reactionTimer);
+    reactionState = 'tooSoon';
+    reactionBox.className = 'reaction-box tooSoon';
+    reactionBox.textContent = '太早了! 等变绿再点';
+    setTimeout(() => {
+      reactionState = 'idle';
+      reactionBox.className = 'reaction-box';
+      reactionBox.textContent = '点击开始';
+    }, 1200);
+  } else if (reactionState === 'ready') {
+    const reactionTime = Math.round(performance.now() - reactionStartTime);
+    reactionState = 'result';
+    reactionBox.className = 'reaction-box result';
+    let msg = `反应时间: ${reactionTime} ms`;
+    if (reactionTime < bestReaction) {
+      bestReaction = reactionTime;
+      msg += ` · 新纪录! 🎉`;
+    }
+    msg += `<br>最佳: ${bestReaction === Infinity ? '-' : bestReaction + ' ms'}`;
+    reactionBox.innerHTML = msg;
+    if (reactionTime < 200) toast('闪电反应! ⚡', '🏆');
+    else if (reactionTime > 500) toast('有点慢哦… 再来一次?', '🐢');
+  }
+});
+
+/* ============================================================
+   新实验 4: 石头剪刀布
+   ============================================================ */
+const rpsChoices = { rock: '✊', paper: '✋', scissors: '✌️' };
+const rpsNames = { rock: '石头', paper: '布', scissors: '剪刀' };
+let rpsPlayerScore = 0, rpsCpuScore = 0;
+const rpsResultEl = $('#rpsResult');
+const rpsScoreEl = $('#rpsScore');
+
+$$('.rps-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const playerChoice = btn.dataset.choice;
+    const cpuChoice = ['rock','paper','scissors'][randInt(0, 2)];
+    $$('.rps-btn').forEach(b => b.classList.remove('win','lose','draw'));
+
+    let result, resultClass;
+    if (playerChoice === cpuChoice) {
+      result = '平局!';
+      resultClass = 'draw';
+    } else if (
+      (playerChoice === 'rock' && cpuChoice === 'scissors') ||
+      (playerChoice === 'paper' && cpuChoice === 'rock') ||
+      (playerChoice === 'scissors' && cpuChoice === 'paper')
+    ) {
+      result = '你赢了! 🎉';
+      resultClass = 'win';
+      rpsPlayerScore++;
+    } else {
+      result = '你输了… 😢';
+      resultClass = 'lose';
+      rpsCpuScore++;
+    }
+    btn.classList.add(resultClass);
+    rpsResultEl.innerHTML = `你 ${rpsChoices[playerChoice]} vs ${rpsChoices[cpuChoice]} 电脑<br><span style="font-size:.85rem;color:var(--fg-dim)">${rpsNames[playerChoice]} vs ${rpsNames[cpuChoice]} · ${result}</span>`;
+    rpsScoreEl.textContent = `你 ${rpsPlayerScore} : ${rpsCpuScore} 电脑`;
+  });
+});
+
+/* ============================================================
+   新实验 5: 随机决策器
+   ============================================================ */
+const decisionInput = $('#decisionInput');
+const decisionResult = $('#decisionResult');
+let decisionPicking = false;
+$('#decisionBtn').addEventListener('click', () => {
+  if (decisionPicking) return;
+  const raw = decisionInput.value.trim();
+  if (!raw) { toast('先输入几个选项呀~', '🎯'); return; }
+  const options = raw.split(/[,，、\n]/).map(s => s.trim()).filter(Boolean);
+  if (options.length < 2) { toast('至少输入两个选项哦', '🎯'); return; }
+
+  decisionPicking = true;
+  decisionResult.classList.add('picking');
+  let flickerCount = 0;
+  const flicker = setInterval(() => {
+    decisionResult.textContent = options[randInt(0, options.length - 1)];
+    flickerCount++;
+    if (flickerCount >= 12) {
+      clearInterval(flicker);
+      const chosen = options[randInt(0, options.length - 1)];
+      decisionResult.textContent = chosen;
+      decisionResult.classList.remove('picking');
+      decisionResult.style.transform = 'scale(1.15)';
+      setTimeout(() => { decisionResult.style.transform = 'scale(1)'; }, 200);
+      decisionPicking = false;
+      toast(`就决定是: ${chosen}!`, '🎯');
+    }
+  }, 70);
+});
+decisionInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('#decisionBtn').click(); }
+});
+
+/* ============================================================
+   实验: 测谎仪
+   ============================================================ */
+const lieBar = $('#lieBar');
+const lieResult = $('#lieResult');
+const liePercent = $('#liePercent');
+const lieBtn = $('#lieBtn');
+let lieScanning = false;
+const lieTruthComments = ['心率平稳，瞳孔未放大，看起来是真话。', '微表情分析通过，你说的是实话。', '声纹无异常波动，可信度较高。', '脑电波正常，没有撒谎的迹象。'];
+const lieLieComments = ['检测到心率飙升！你在撒谎！', '瞳孔放大了0.3毫米，典型的撒谎反应。', '声纹出现异常抖动，你在隐瞒什么。', '微表情捕捉到一丝慌张，谎言被识破了！'];
+lieBtn.addEventListener('click', () => {
+  if (lieScanning) return;
+  lieScanning = true;
+  lieBtn.textContent = '检测中…';
+  lieResult.className = 'lie-result scanning';
+  lieResult.textContent = '分析中…';
+  liePercent.textContent = '';
+  lieBar.style.width = '0%';
+  let progress = 0;
+  const scanInterval = setInterval(() => {
+    progress += randInt(3, 10);
+    if (progress >= 100) {
+      progress = 100;
+      clearInterval(scanInterval);
+      lieBar.style.width = '100%';
+      const isTruth = Math.random() > 0.5;
+      const percent = isTruth ? randInt(72, 98) : randInt(55, 95);
+      setTimeout(() => {
+        if (isTruth) {
+          lieResult.className = 'lie-result truth';
+          lieResult.textContent = '✓ 真话';
+          liePercent.textContent = '可信度 ' + percent + '% · ' + lieTruthComments[randInt(0, lieTruthComments.length - 1)];
+        } else {
+          lieResult.className = 'lie-result lie';
+          lieResult.textContent = '✗ 谎言';
+          liePercent.textContent = '撒谎概率 ' + percent + '% · ' + lieLieComments[randInt(0, lieLieComments.length - 1)];
+        }
+        lieBtn.textContent = '再测一次';
+        lieScanning = false;
+      }, 300);
+    } else {
+      lieBar.style.width = progress + '%';
+    }
+  }, 60);
+});
+
+/* ============================================================
+   实验: 按了就后悔
+   ============================================================ */
+const regretBtn = $('#regretBtn');
+const regretMsg = $('#regretMsg');
+let regretCount = 0;
+const regretMessages = [
+  '我就知道你会按。',
+  '你看，我说了不要按吧。',
+  '现在后悔了吗？',
+  '你已经按了 ' + regretCount + ' 次了，还不长记性？',
+  '这个按钮就是为了让你后悔而存在的。',
+  '每按一次，就有一只小猫失去它的毛线球。',
+  '你的手指不听话啊。',
+  '再按下去会发生不好的事哦……骗你的。',
+  '你是不是手痒？',
+  '好了好了，你赢了，别按了行不行？',
+  '这个按钮已经被你按坏了（并没有）。',
+  '按吧按吧，反正也不会怎样。',
+  '你是不是觉得每次按都会有新台词？猜对了。',
+  '你的毅力令人敬佩，也令人担忧。',
+  '最后警告：不要按了！（其实不是最后）'
+];
+const regretBtnTexts = ['不要按我', '真的不要按', '求你了别按', '你还按？！', '我生气了', '好吧你赢了', '再来一次？', '手痒就按吧'];
+regretBtn.addEventListener('click', () => {
+  regretCount++;
+  regretMsg.textContent = regretMessages[Math.min(regretCount - 1, regretMessages.length - 1)];
+  regretMsg.style.opacity = '0';
+  setTimeout(() => { regretMsg.style.opacity = '1'; }, 50);
+  if (regretCount < regretBtnTexts.length) {
+    regretBtn.textContent = regretBtnTexts[regretCount];
+  } else {
+    regretBtn.textContent = '你已经按了 ' + regretCount + ' 次';
+  }
+  // 按钮抖动效果
+  regretBtn.style.transform = 'scale(0.95)';
+  setTimeout(() => { regretBtn.style.transform = ''; }, 100);
+  if (regretCount >= 5 && regretCount % 5 === 0) {
+    toast('你已经按了 ' + regretCount + ' 次，是真的手痒啊', '🪤');
+  }
+});
+
+/* ============================================================
+   实验: 谷歌小恐龙
+   ============================================================ */
+const dinoCanvas = $('#dinoCanvas');
+const dinoCtx = dinoCanvas.getContext('2d');
+const dinoScoreEl = $('#dinoScore');
+const dinoHighEl = $('#dinoHigh');
+const dinoRestartBtn = $('#dinoRestart');
+const DW = dinoCanvas.width, DH = dinoCanvas.height;
+const GROUND_Y = DH - 20;
+let dinoHigh = parseInt(localStorage.getItem('dinoHigh') || '0');
+dinoHighEl.textContent = dinoHigh;
+let dinoState = { running:false, over:false, score:0, speed:4, frame:0 };
+let dino = { x:40, y:GROUND_Y-30, w:28, h:30, vy:0, jumping:false };
+let cacti = [];
+const GRAVITY = 0.6;
+const JUMP_V = -11;
+function dinoJump() {
+  if (dinoState.over) { dinoReset(); return; }
+  if (!dinoState.running) { dinoState.running = true; }
+  if (!dino.jumping) { dino.vy = JUMP_V; dino.jumping = true; }
+}
+function dinoReset() {
+  dinoState = { running:false, over:false, score:0, speed:4, frame:0 };
+  dino = { x:40, y:GROUND_Y-30, w:28, h:30, vy:0, jumping:false };
+  cacti = [];
+  dinoScoreEl.textContent = '0';
+}
+function spawnCactus() {
+  const h = randInt(18, 32);
+  const w = randInt(10, 16);
+  cacti.push({ x:DW, y:GROUND_Y-h, w:w, h:h });
+}
+function checkCollision(a, b) {
+  return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+function dinoDraw() {
+  dinoCtx.clearRect(0,0,DW,DH);
+  // ground
+  dinoCtx.strokeStyle = '#666';
+  dinoCtx.lineWidth = 2;
+  dinoCtx.beginPath();
+  dinoCtx.moveTo(0, GROUND_Y);
+  dinoCtx.lineTo(DW, GROUND_Y);
+  dinoCtx.stroke();
+  // dino
+  dinoCtx.fillStyle = '#555';
+  dinoCtx.fillRect(dino.x, dino.y, dino.w, dino.h);
+  // eye
+  dinoCtx.fillStyle = '#fff';
+  dinoCtx.fillRect(dino.x+dino.w-8, dino.y+6, 4, 4);
+  // cacti
+  dinoCtx.fillStyle = '#3a7d3a';
+  cacti.forEach(c => { dinoCtx.fillRect(c.x, c.y, c.w, c.h); });
+  // game over
+  if (dinoState.over) {
+    dinoCtx.fillStyle = 'rgba(0,0,0,.5)';
+    dinoCtx.fillRect(0,0,DW,DH);
+    dinoCtx.fillStyle = '#fff';
+    dinoCtx.font = 'bold 18px sans-serif';
+    dinoCtx.textAlign = 'center';
+    dinoCtx.fillText('GAME OVER', DW/2, DH/2-6);
+    dinoCtx.font = '12px sans-serif';
+    dinoCtx.fillText('点击或按空格重来', DW/2, DH/2+14);
+  } else if (!dinoState.running) {
+    dinoCtx.fillStyle = '#888';
+    dinoCtx.font = '13px sans-serif';
+    dinoCtx.textAlign = 'center';
+    dinoCtx.fillText('点击或按空格开始', DW/2, DH/2);
+  }
+}
+function dinoLoop() {
+  if (dinoState.running && !dinoState.over) {
+    dinoState.frame++;
+    // physics
+    dino.vy += GRAVITY;
+    dino.y += dino.vy;
+    if (dino.y >= GROUND_Y - dino.h) { dino.y = GROUND_Y - dino.h; dino.vy = 0; dino.jumping = false; }
+    // cacti
+    if (dinoState.frame % Math.max(40, 90 - Math.floor(dinoState.score/10)) === 0) { spawnCactus(); }
+    cacti.forEach(c => { c.x -= dinoState.speed; });
+    cacti = cacti.filter(c => c.x + c.w > 0);
+    // collision
+    for (let c of cacti) {
+      if (checkCollision(dino, c)) {
+        dinoState.over = true;
+        if (dinoState.score > dinoHigh) { dinoHigh = dinoState.score; localStorage.setItem('dinoHigh', dinoHigh); dinoHighEl.textContent = dinoHigh; }
+        break;
+      }
+    }
+    // score & speed
+    if (dinoState.frame % 6 === 0) { dinoState.score++; dinoScoreEl.textContent = dinoState.score; }
+    if (dinoState.score % 100 === 0 && dinoState.speed < 10) { dinoState.speed += 0.3; }
+  }
+  dinoDraw();
+  requestAnimationFrame(dinoLoop);
+}
+dinoCanvas.addEventListener('click', dinoJump);
+dinoCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); dinoJump(); });
+dinoRestartBtn.addEventListener('click', dinoReset);
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && dinoCanvas.getBoundingClientRect().top < window.innerHeight) {
+    e.preventDefault(); dinoJump();
+  }
+});
+dinoLoop();
+
+/* ============================================================
+   实验: 井字棋
+   ============================================================ */
+const tttBoard = $('#tttBoard');
+const tttStatus = $('#tttStatus');
+const tttResetBtn = $('#tttReset');
+const tttCells = $$('.ttt-cell');
+let tttBoardState = Array(9).fill('');
+let tttGameOver = false;
+let tttScores = { player:0, ai:0, draw:0 };
+let tttFirstPlayer = 'player';
+let tttPlayerTurn = true;
+const tttWinLines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function tttCheckWin(board, p) {
+  for (let line of tttWinLines) {
+    if (line.every(i => board[i] === p)) return line;
+  }
+  return null;
+}
+function tttAvailable(board) { return board.map((v,i)=>v===''?i:-1).filter(i=>i>=0); }
+function tttAiMove() {
+  const board = tttBoardState;
+  // 1. win if possible
+  for (let i of tttAvailable(board)) {
+    const b = [...board]; b[i] = 'O';
+    if (tttCheckWin(b, 'O')) return i;
+  }
+  // 2. block player
+  for (let i of tttAvailable(board)) {
+    const b = [...board]; b[i] = 'X';
+    if (tttCheckWin(b, 'X')) return i;
+  }
+  // 3. take center
+  if (board[4] === '') return 4;
+  // 4. take corner
+  const corners = [0,2,6,8].filter(i => board[i]==='');
+  if (corners.length) return corners[randInt(0, corners.length-1)];
+  // 5. take edge
+  const edges = tttAvailable(board);
+  return edges[randInt(0, edges.length-1)];
+}
+function tttUpdate() {
+  tttCells.forEach((c, i) => {
+    c.textContent = tttBoardState[i];
+    c.classList.toggle('taken', tttBoardState[i] !== '');
+    c.classList.toggle('x', tttBoardState[i] === 'X');
+    c.classList.toggle('o', tttBoardState[i] === 'O');
+  });
+}
+function tttEndGame(result, line) {
+  tttGameOver = true;
+  if (line) line.forEach(i => tttCells[i].classList.add('win'));
+  if (result === 'X') { tttScores.player++; tttStatus.textContent = '🎉 你赢了！'; }
+  else if (result === 'O') { tttScores.ai++; tttStatus.textContent = '🤖 AI 赢了！'; }
+  else { tttScores.draw++; tttStatus.textContent = '🤝 平局！'; }
+  $('#tttPlayerWins').textContent = tttScores.player;
+  $('#tttAiWins').textContent = tttScores.ai;
+  $('#tttDraws').textContent = tttScores.draw;
+}
+tttCells.forEach(cell => {
+  cell.addEventListener('click', () => {
+    if (tttGameOver || !tttPlayerTurn) return;
+    const i = parseInt(cell.dataset.i);
+    if (tttBoardState[i] !== '') return;
+    tttBoardState[i] = 'X';
+    tttUpdate();
+    const winLine = tttCheckWin(tttBoardState, 'X');
+    if (winLine) { tttEndGame('X', winLine); return; }
+    if (tttAvailable(tttBoardState).length === 0) { tttEndGame('draw', null); return; }
+    tttPlayerTurn = false;
+    tttStatus.textContent = 'AI 思考中…';
+    setTimeout(() => {
+      const ai = tttAiMove();
+      tttBoardState[ai] = 'O';
+      tttUpdate();
+      const aiWin = tttCheckWin(tttBoardState, 'O');
+      if (aiWin) { tttEndGame('O', aiWin); return; }
+      if (tttAvailable(tttBoardState).length === 0) { tttEndGame('draw', null); return; }
+      tttPlayerTurn = true;
+      tttStatus.textContent = '轮到你了（❌）';
+    }, 400);
+  });
+});
+function tttReset() {
+  tttBoardState = Array(9).fill('');
+  tttGameOver = false;
+  tttCells.forEach(c => c.classList.remove('win'));
+  tttUpdate();
+  tttFirstPlayer = tttFirstPlayer === 'player' ? 'ai' : 'player';
+  if (tttFirstPlayer === 'ai') {
+    tttPlayerTurn = false;
+    tttStatus.textContent = 'AI先手（⭕）…';
+    setTimeout(() => {
+      const ai = tttAiMove();
+      tttBoardState[ai] = 'O';
+      tttUpdate();
+      tttPlayerTurn = true;
+      tttStatus.textContent = '轮到你了（❌）';
+    }, 500);
+  } else {
+    tttPlayerTurn = true;
+    tttStatus.textContent = '你先手（❌）';
+  }
+}
+tttResetBtn.addEventListener('click', tttReset);
+
+/* ============================================================
+   实验: 拆弹专家
+   ============================================================ */
+const bombDevice = $('#bombDevice');
+const bombTimer = $('#bombTimer');
+const bombResult = $('#bombResult');
+const bombStart = $('#bombStart');
+const bombMinus = $('#bombMinus');
+const bombPlus = $('#bombPlus');
+const wireRed = $('#wireRed');
+const wireBlue = $('#wireBlue');
+const timerLights = $$('#timerLights span');
+let bombInterval = null;
+let bombTimeLeft = 10;
+let bombSetTime = 10;
+let bombCorrectWire = '';
+let bombActive = false;
+
+// ===== 七段数码管 =====
+const SEG_MAP = {
+  '0':['a','b','c','d','e','f'], '1':['b','c'], '2':['a','b','g','e','d'],
+  '3':['a','b','g','c','d'], '4':['f','g','b','c'], '5':['a','f','g','c','d'],
+  '6':['a','f','g','c','d','e'], '7':['a','b','c'], '8':['a','b','c','d','e','f','g'],
+  '9':['a','b','c','d','f','g']
+};
+let segDigits = [];
+function initSegDisplay() {
+  bombTimer.innerHTML = '';
+  const positions = ['M1','M2','colon','S1','S2'];
+  positions.forEach(pos => {
+    if (pos === 'colon') {
+      const c = document.createElement('div');
+      c.className = 'seg-colon';
+      c.textContent = ':';
+      bombTimer.appendChild(c);
+    } else {
+      const d = document.createElement('div');
+      d.className = 'seg-digit';
+      d.id = 'seg' + pos;
+      ['a','b','c','d','e','f','g'].forEach(s => {
+        const seg = document.createElement('div');
+        seg.className = 'seg ' + s;
+        seg.dataset.seg = s;
+        d.appendChild(seg);
+      });
+      bombTimer.appendChild(d);
+      segDigits.push(d);
+    }
+  });
+}
+function setDigit(el, digit) {
+  const onSegs = SEG_MAP[digit] || [];
+  el.querySelectorAll('.seg').forEach(seg => {
+    const name = seg.dataset.seg;
+    seg.classList.toggle('on', onSegs.includes(name));
+  });
+}
+function updateTimerDisplay(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const str = (m<10?'0':'')+m + (s<10?'0':'')+s;
+  setDigit(segDigits[0], str[0]);
+  setDigit(segDigits[1], str[1]);
+  setDigit(segDigits[2], str[2]);
+  setDigit(segDigits[3], str[3]);
+}
+initSegDisplay();
+updateTimerDisplay(bombSetTime);
+
+
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+function setLights(on) {
+  timerLights.forEach((l, i) => {
+    l.classList.toggle('on', on ? (i < Math.ceil(timerLights.length * (bombTimeLeft / bombSetTime))) : false);
+  });
+}
+
+function bombReset() {
+  clearInterval(bombInterval);
+  bombActive = false;
+  bombTimeLeft = bombSetTime;
+  updateTimerDisplay(bombSetTime);
+  bombTimer.classList.remove('urgent');
+  bombDevice.classList.remove('bomb-shake','warning','critical','freeze');
+  bombResult.textContent = '设定时间后按 START';
+  bombResult.className = 'bomb-result';
+  wireRed.setAttribute('class', 'wire-svg red disabled');
+  wireBlue.setAttribute('class', 'wire-svg blue disabled');
+  bombStart.textContent = 'START';
+  bombStart.disabled = false;
+  bombMinus.disabled = false;
+  bombPlus.disabled = false;
+  setLights(false);
+}
+
+function bombExplode() {
+  clearInterval(bombInterval);
+  bombActive = false;
+  updateTimerDisplay(0);
+  bombTimer.classList.remove('urgent');
+  bombDevice.classList.remove('warning','critical','freeze');
+  bombDevice.classList.add('bomb-shake');
+  // 全屏白光→红光
+  const fw = document.createElement('div'); fw.className = 'bomb-flash white';
+  document.body.appendChild(fw); setTimeout(() => fw.remove(), 220);
+  const fr = document.createElement('div'); fr.className = 'bomb-flash red';
+  document.body.appendChild(fr); setTimeout(() => fr.remove(), 520);
+  // BOOM大字
+  const boom = document.createElement('div'); boom.className = 'bomb-boom-text';
+  boom.textContent = 'BOOM!'; document.body.appendChild(boom);
+  setTimeout(() => boom.remove(), 1600);
+  bombResult.textContent = '💥 BOOM！炸弹爆炸了！';
+  bombResult.className = 'bomb-result fail';
+  wireRed.setAttribute('class', 'wire-svg red disabled');
+  wireBlue.setAttribute('class', 'wire-svg blue disabled');
+  bombStart.textContent = 'RETRY';
+  bombStart.disabled = false;
+  bombMinus.disabled = false;
+  bombPlus.disabled = false;
+  setLights(false);
+  setTimeout(() => { bombDevice.classList.remove('bomb-shake'); }, 900);
+  toast('BOOM！炸弹炸了', '💥');
+}
+
+function bombSuccess() {
+  clearInterval(bombInterval);
+  bombActive = false;
+  bombDevice.classList.remove('warning','critical','freeze');
+  // 成功绿光
+  const fg = document.createElement('div'); fg.className = 'bomb-flash green';
+  document.body.appendChild(fg); setTimeout(() => fg.remove(), 450);
+  const phew = document.createElement('div'); phew.className = 'bomb-success-text';
+  phew.textContent = 'PHEW!'; document.body.appendChild(phew);
+  setTimeout(() => phew.remove(), 1400);
+  bombResult.textContent = '🎉 拆弹成功！剩余 ' + fmtTime(bombTimeLeft);
+  bombResult.className = 'bomb-result success';
+  wireRed.setAttribute('class', 'wire-svg red disabled');
+  wireBlue.setAttribute('class', 'wire-svg blue disabled');
+  bombStart.textContent = 'RETRY';
+  bombStart.disabled = false;
+  bombMinus.disabled = false;
+  bombPlus.disabled = false;
+  setLights(false);
+  toast('拆弹成功！剩余 ' + fmtTime(bombTimeLeft), '🎉');
+}
+
+function bombStartGame() {
+  if (bombActive) return;
+  bombSetTime = bombTimeLeft;
+  bombCorrectWire = Math.random() > 0.5 ? 'red' : 'blue';
+  bombActive = true;
+  bombTimer.classList.remove('urgent');
+  bombDevice.classList.remove('bomb-shake','warning','critical','freeze');
+  bombResult.textContent = '快！选一根线剪断！';
+  bombResult.className = 'bomb-result';
+  wireRed.setAttribute('class', 'wire-svg red');
+  wireBlue.setAttribute('class', 'wire-svg blue');
+  bombStart.disabled = true;
+  bombMinus.disabled = true;
+  bombPlus.disabled = true;
+  setLights(true);
+  bombInterval = setInterval(() => {
+    bombTimeLeft--;
+    updateTimerDisplay(bombTimeLeft);
+    setLights(true);
+    if (bombTimeLeft <= 5) { bombDevice.classList.add('warning'); }
+    if (bombTimeLeft <= 3) { bombDevice.classList.add('critical'); bombTimer.classList.add('urgent'); }
+    if (bombTimeLeft <= 0) { bombExplode(); }
+  }, 1000);
+}
+
+function bombCutWire(wire) {
+  if (!bombActive) return;
+  bombActive = false;
+  const wireEl = wire === 'red' ? wireRed : wireBlue;
+  // 慢动作冻结（悬念）
+  bombDevice.classList.add('freeze');
+  clearInterval(bombInterval);
+  setTimeout(() => {
+    bombDevice.classList.remove('freeze');
+    // 剪断火花
+    const spark = document.createElement('div');
+    spark.className = 'cut-spark';
+    const rect = wireEl.getBoundingClientRect();
+    const devRect = bombDevice.getBoundingClientRect();
+    spark.style.left = (rect.left - devRect.left + rect.width / 2) + 'px';
+    spark.style.top = (rect.top - devRect.top + rect.height * 0.42) + 'px';
+    bombDevice.appendChild(spark);
+    setTimeout(() => spark.remove(), 500);
+    // 剪断动画
+    wireEl.classList.add('cutting');
+    setTimeout(() => {
+      wireEl.classList.remove('cutting');
+      wireEl.classList.add('cut');
+      // 悬念停顿
+      setTimeout(() => {
+        if (wire === bombCorrectWire) { bombSuccess(); }
+        else { bombExplode(); }
+      }, 420);
+    }, 620);
+  }, 360);
+}
+
+bombStart.addEventListener('click', () => {
+  if (bombActive) return;
+  if (bombStart.textContent === 'RETRY') { bombReset(); return; }
+  bombStartGame();
+});
+bombMinus.addEventListener('click', () => {
+  if (bombActive) return;
+  if (bombTimeLeft > 5) { bombTimeLeft -= 5; updateTimerDisplay(bombTimeLeft); }
+});
+bombPlus.addEventListener('click', () => {
+  if (bombActive) return;
+  if (bombTimeLeft < 25) { bombTimeLeft += 5; updateTimerDisplay(bombTimeLeft); }
+});
+wireRed.addEventListener('click', () => bombCutWire('red'));
+wireBlue.addEventListener('click', () => bombCutWire('blue'));
+
+console.log('%c提示: 手机点右下角 🎮 打开彩蛋控制台, 可输入文字、按虚拟方向键、触发快捷键', 'color:#00e5ff;font-size:12px;');
+</script>
+</body>
+</html>
