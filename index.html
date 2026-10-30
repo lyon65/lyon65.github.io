@@ -1033,6 +1033,248 @@ body.thriller-mode .hero h1 .grad {
   nav,footer { border-color:#ccc; }
   .card { border:1px solid #ccc; break-inside:avoid; }
 }
+
+/* ============================================================
+   【假人机验证恶作剧】开始 —— 1:1 复刻 neal.fun 第一关
+   ============================================================ */
+
+/* ============================================================
+   假人机验证恶作剧
+   第一关验证码：类名 / 尺寸 / 动画机制逐项对照 neal.fun
+   （源码 scope data-v-0df32a08），中文版文字
+   ============================================================ */
+
+/* ---- 全屏遮罩 ---- */
+.prank-overlay {
+  position: fixed; inset: 0; z-index: 99997;
+  display: none; flex-direction: column; padding: 20px;
+}
+.prank-overlay.show { display: flex; animation: prankFadeIn .25s ease; }
+@keyframes prankFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ========== 假 reCAPTCHA（1:1 复刻 neal.fun 第一关） ========== */
+#prankCaptcha { background: #fff; align-items: center; justify-content: center; }
+
+/* 卡片：源码 .captcha-box */
+.captcha-box {
+  align-items: center;
+  background-color: #f9f9f9;
+  border: 1px solid #d3d3d3;
+  border-radius: 3px;
+  box-shadow: rgba(0,0,0,.06) 0 1px 3px 1px;
+  display: flex;
+  height: 76px;
+  position: relative;
+  width: 315px; max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  font-family: Roboto, helvetica, arial, sans-serif;
+  color: #000; font-weight: 400;
+  animation: prankPop .3s cubic-bezier(.34,1.56,.64,1);
+}
+.captcha-box:hover { box-shadow: rgba(0,0,0,.12) 0 1px 3px 1px; }
+@keyframes prankPop {
+  from { transform: scale(.92) translateY(14px); opacity: 0; }
+  to   { transform: scale(1) translateY(0);       opacity: 1; }
+}
+
+/* 复选框槽：源码 .captcha-box-checkbox */
+.captcha-box-checkbox {
+  align-items: center; display: flex; height: 100%;
+  justify-content: center;
+  margin-left: 14px; margin-right: 14px;
+  position: relative; width: 26px;
+  flex-shrink: 0; box-sizing: border-box;
+}
+
+/* 复选框 input：源码 .captcha-box-checkbox-input */
+.captcha-box-checkbox-input {
+  appearance: none;
+  background-color: #fff;
+  border: 2px solid #c3c3c3;
+  border-radius: 2px;
+  cursor: pointer;
+  height: 27px;
+  left: 0;
+  outline: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 27px;
+  box-sizing: border-box;
+}
+/* 点击后缩小：源码 checkbox-checked（用独立 scale 属性，transform 保持） */
+.captcha-box-checkbox-input-checked {
+  animation: checkbox-checked .07s ease-in-out 0s 1 normal forwards;
+}
+@keyframes checkbox-checked {
+  0%   { scale: 1; }
+  100% { opacity: 0; scale: .5; }
+}
+
+/* 转圈容器：源码 .checkmark-spinner-container（静态存在，内部点击后填充） */
+.checkmark-spinner-container {
+  aspect-ratio: 1 / 1;
+  position: relative;
+  scale: .75;
+  width: 100%;
+}
+/* 3/4 蓝圆弧：源码 .checkmark-spinner */
+.checkmark-spinner {
+  animation: spinner-spin 2.5s linear 0s infinite normal;
+  background-color: #f9f9f9;
+  border-color: #4d90fe #4d90fe transparent transparent;
+  border-radius: 36px;
+  border-style: solid;
+  border-width: 6px;
+  box-sizing: border-box;
+  height: 36px;
+  left: -4px;
+  position: absolute;
+  top: -4px;
+  width: 36px;
+}
+@keyframes spinner-spin {
+  0%   { transform: rotate(0deg); }
+  10%  { transform: rotate(135deg); }
+  20%  { transform: rotate(245deg); }
+  60%  { transform: rotate(700deg); }
+  75%  { transform: rotate(810deg); }
+  100% { transform: rotate(3turn); }
+}
+/* 遮挡半圆：源码 .spinner-overlay */
+.spinner-overlay {
+  animation: overlay-spin 1s linear 0s infinite alternate;
+  background-color: #f9f9f9;
+  border-radius: 38px 38px 0 0;
+  height: 19px;
+  left: -7px;
+  opacity: 1;
+  position: absolute;
+  top: -7px;
+  transform: rotate(45deg);
+  transform-origin: center bottom;
+  width: 38px;
+}
+@keyframes overlay-spin {
+  0%   { opacity: 1; transform: rotate(45deg); }
+  100% { opacity: 0; transform: rotate(225deg); }
+}
+
+/* 对勾容器：源码 .checkmark（子元素 svg 绝对定位，故自身自然为 0 尺寸） */
+.checkmark {
+  color: #0ca95d;
+  font-size: 32px;
+  font-weight: 700;
+}
+/* 对勾 svg：源码 .checkmark-svg（.check 类触发 translateY） */
+.checkmark-svg {
+  height: 100%;
+  left: 2px;
+  position: absolute;
+  scale: 1.6;
+  top: 0;
+  width: 100%;
+}
+.checkmark-svg.check { transform: translateY(-1px); }
+
+/* 主文字：源码 .captcha-text */
+.captcha-text {
+  color: #000;
+  font-size: 16px;
+  font-weight: 400;
+  width: calc(100% - 140px);
+  user-select: none;
+}
+
+/* 右侧 logo 区：源码 .captcha-logo-area */
+.captcha-logo-area {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.recaptcha-logo img { height: 32px; width: 32px; display: block; }
+/* 源码 .recaptcha-text */
+.recaptcha-text { color: #555; font-size: 10px; }
+
+/* ========== Chrome 风格 confirm 弹窗 ========== */
+#prankConfirm {
+  background: rgba(0,0,0,.45);
+  align-items: center; justify-content: center;
+}
+.chrome-dialog {
+  background: #fff; border-radius: 8px;
+  width: 340px; max-width: calc(100vw - 32px); overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0,0,0,.18);
+  font-family: Roboto, 'Segoe UI', system-ui, sans-serif;
+  animation: prankPop .22s cubic-bezier(.34,1.56,.64,1);
+}
+.chrome-dialog.shake { animation: prankShake .4s; }
+@keyframes prankShake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+.chrome-dialog-msg {
+  padding: 24px 24px 8px;
+  font-size: 14px; color: #202124; line-height: 1.5;
+  transition: color .2s;
+}
+.chrome-dialog-msg.warning { color: #db4437; font-weight: 700; }
+.chrome-dialog-btns {
+  display: flex; justify-content: flex-end; gap: 4px;
+  padding: 12px 12px 16px;
+}
+.chrome-btn {
+  padding: 10px 20px; border-radius: 4px;
+  font-size: 14px; font-weight: 500; font-family: inherit;
+  border: none; cursor: pointer; transition: background .15s;
+  letter-spacing: .2px; min-width: 72px; min-height: 40px;
+}
+.chrome-btn:active { opacity: .85; }
+.chrome-btn-primary { background: #1a73e8; color: #fff; }
+.chrome-btn-primary:hover { background: #1557b0; }
+.chrome-btn-secondary { background: transparent; color: #1a73e8; }
+.chrome-btn-secondary:hover { background: rgba(26,115,232,.08); }
+
+/* ========== 嘲讽屏 ========== */
+#prankMock {
+  background: rgba(0,0,0,.85); backdrop-filter: blur(10px);
+  align-items: center; justify-content: center;
+}
+.prank-mock {
+  text-align: center; padding: 20px;
+  animation: prankPop .5s cubic-bezier(.34,1.56,.64,1);
+}
+.prank-mock-icon { font-size: 5rem; margin-bottom: 16px; display: inline-block;
+  animation: prankWiggle .5s ease infinite alternate; }
+@keyframes prankWiggle { from { transform: rotate(-10deg); } to { transform: rotate(10deg); } }
+.prank-mock h2 {
+  font-size: clamp(2.5rem, 8vw, 5rem); font-weight: 900;
+  background: linear-gradient(135deg, #ff5c8a, #ffdd00);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 16px; letter-spacing: -2px;
+}
+.prank-mock p {
+  color: #ccc; font-size: 1.1rem; max-width: 420px; margin: 0 auto 28px;
+  line-height: 1.7;
+}
+.prank-continue {
+  background: linear-gradient(135deg, #7c5cff, #00e5ff); color: #fff;
+  padding: 13px 32px; border-radius: 50px; font-size: .95rem; font-weight: 600;
+  border: none; cursor: pointer; font-family: inherit;
+  box-shadow: 0 8px 30px rgba(124,92,255,.4);
+}
+.prank-continue:active { transform: scale(.96); }
+
+/* 【假人机验证恶作剧】CSS 结束 */
 </style>
 </head>
 <body>
@@ -1088,7 +1330,7 @@ body.thriller-mode .hero h1 .grad {
     <span class="grad" id="heroTitle">藏满彩蛋</span><br/>
     的网页
   </h1>
-  <p>移动光标、点击、打字、滚动…… 每个角落都可能藏着惊喜。手机用户点右下角 🎮 打开彩蛋控制台。<br/>作者提示：部分内容有点抽象，敬请谅解。</p>
+  <p>移动光标、点击、打字、滚动…… 每个角落都可能藏着惊喜。手机用户点右下角 🎮 打开彩蛋控制台。<br/>(作者提示：部分内容有点抽象，敬请谅解)</p>
   <div class="hero-cta">
     <button class="btn btn-primary" id="startBtn">开始探索</button>
     <button class="btn btn-ghost" id="dontPressBtn">绝对不要按这个按钮</button>
@@ -3503,6 +3745,199 @@ wireRed.addEventListener('click', () => bombCutWire('red'));
 wireBlue.addEventListener('click', () => bombCutWire('blue'));
 
 console.log('%c提示: 手机点右下角 🎮 打开彩蛋控制台, 可输入文字、按虚拟方向键、触发快捷键', 'color:#00e5ff;font-size:12px;');
+
+/* ============================================================
+   【假人机验证恶作剧】JS 开始（独立 IIFE，内部 $ 不影响外部）
+   ============================================================ */
+
+function startPrankCaptcha() { (function () {
+  'use strict';
+
+  /* ===== 可调参数 ===== */
+  const NORMAL_ROUNDS    = 9;    // 9 轮正常，第 10 轮换按钮位置
+  const DELAY_AFTER_LOAD = 900;  // 进页面多久后弹出验证码
+  const SPINNER_DURATION = 700;  // 转圈时长（源码实测约 700ms）
+  const CHECK_HOLD       = 500;  // 对勾画完后停留多久进弹窗
+  const REPOP_DELAY      = 30;   // 点确定后多久弹下一个（毫秒）
+  const WARN_DURATION    = 1200; // 点不确定后红色警告停留时长
+
+  const $ = (id) => document.getElementById(id);
+  const overlayCaptcha = $('prankCaptcha');
+  const overlayConfirm = $('prankConfirm');
+  const overlayMock    = $('prankMock');
+  const checkbox       = $('recaptchaCheckbox');
+  const cbInput        = $('cbInput');
+  const spinnerCont    = $('spinnerCont');
+  const dialog         = $('prankDialog');
+  const questionEl     = $('prankQuestion');
+  const buttonsBox     = $('prankButtons');
+  const yesBtn         = $('prankYes');
+  const noBtn          = $('prankNo');
+  const mockText       = $('prankMockText');
+  const continueBtn    = $('prankContinue');
+
+  let round = 0;
+  let warnTimer = null;
+  let busy = false;
+
+  /* ===== 启动 ===== */
+  setTimeout(() => overlayCaptcha.classList.add('show'), DELAY_AFTER_LOAD);
+
+  /* ===== 第一步：勾选假 reCAPTCHA ===== */
+  checkbox.addEventListener('click', () => {
+    if (cbInput.classList.contains('captcha-box-checkbox-input-checked')) return;
+    // 1) input 缩小
+    cbInput.classList.add('captcha-box-checkbox-input-checked');
+    // 2) 转圈容器内填入 spinner
+    spinnerCont.innerHTML =
+      '<div class="checkmark-spinner"><div class="spinner-overlay"></div></div>';
+    // 3) 转圈结束：清空，插入对勾（SMIL 动画自动播放）
+    setTimeout(() => {
+      spinnerCont.innerHTML = '';
+      const cm = document.createElement('div');
+      cm.className = 'checkmark';
+      cm.innerHTML =
+        '<svg width="100" height="100" viewBox="0 0 100 100" class="checkmark-svg check">' +
+          '<path d="M20 55 L40 75 L80 30" fill="none" stroke="green" ' +
+                'stroke-width="7" stroke-dasharray="100" stroke-dashoffset="100">' +
+            '<animate attributeName="stroke-dashoffset" from="100" to="0" ' +
+                     'dur="0.4s" fill="freeze" begin="0s"/>' +
+          '</path>' +
+        '</svg>';
+      checkbox.appendChild(cm);
+      // 4) 对勾停留后隐藏验证码，进弹窗
+      setTimeout(() => {
+        overlayCaptcha.classList.remove('show');
+        round = 0; busy = false;
+        showConfirm();
+      }, 400 + CHECK_HOLD);
+    }, SPINNER_DURATION);
+  });
+
+  /* ===== 第二步："你确定吗？" 循环 ===== */
+  function showConfirm() {
+    round++;
+    const swapped = (round === NORMAL_ROUNDS + 1);
+
+    if (warnTimer) { clearTimeout(warnTimer); warnTimer = null; }
+    questionEl.textContent = '你确定吗？';
+    questionEl.classList.remove('warning');
+
+    buttonsBox.innerHTML = '';
+    // 正常轮：不确定(左) 确定(右)；陷阱轮：交换
+    buttonsBox.appendChild(swapped ? yesBtn : noBtn);
+    buttonsBox.appendChild(swapped ? noBtn  : yesBtn);
+
+    overlayConfirm.classList.add('show');
+    busy = false;
+
+    yesBtn.onclick = () => handleYes(swapped);
+    noBtn.onclick  = () => handleNo(swapped);
+  }
+
+  function handleYes(swapped) {
+    if (busy) return;
+    if (swapped) {
+      mockText.textContent = '哟，还真让你发现按钮换位了？但你来都来了 😏';
+      showMock();
+    } else {
+      busy = true;
+      overlayConfirm.classList.remove('show');
+      setTimeout(showConfirm, REPOP_DELAY);
+    }
+  }
+
+  function handleNo(swapped) {
+    if (swapped) {
+      mockText.textContent = '哈哈！你刚才点的是"不确定"！手比脑子快吧 😏';
+      showMock();
+      return;
+    }
+    // 点"不确定"：抖动 + 红色警告，不跳轮
+    if (warnTimer) { clearTimeout(warnTimer); warnTimer = null; }
+    dialog.classList.remove('shake');
+    void dialog.offsetWidth;
+    dialog.classList.add('shake');
+    questionEl.textContent = '✗ 别犹豫了，点确定';
+    questionEl.classList.add('warning');
+    warnTimer = setTimeout(() => {
+      questionEl.textContent = '你确定吗？';
+      questionEl.classList.remove('warning');
+      warnTimer = null;
+    }, WARN_DURATION);
+  }
+
+  /* ===== 第三步：嘲讽屏 ===== */
+  function showMock() {
+    overlayConfirm.classList.remove('show');
+    setTimeout(() => overlayMock.classList.add('show'), 280);
+  }
+
+  continueBtn.addEventListener('click', () => {
+    overlayMock.classList.remove('show');
+    if (typeof window.toast === 'function') {
+      window.toast('被骗了吧？😏 欢迎来到彩蛋屋', '🎭');
+    }
+  });
+
+})(); }
+
+/* 等 DOM 全部解析后再启动（恶作剧 HTML 在本脚本之后，必须延迟取元素） */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startPrankCaptcha);
+} else {
+  startPrankCaptcha();
+}
+
+/* 【假人机验证恶作剧】JS 结束 */
 </script>
+
+<!-- ============================================================ 假人机验证恶作剧 HTML 开始 ============================================================ -->
+
+
+<!-- ============================================================
+     HTML
+     ============================================================ -->
+
+<div class="prank-overlay" id="prankCaptcha">
+  <div class="captcha-box">
+    <div class="captcha-box-checkbox" id="recaptchaCheckbox">
+      <!-- 复选框 input（点击后加 checked 类缩小） -->
+      <div class="captcha-box-checkbox-input" id="cbInput"></div>
+      <!-- 转圈容器（静态存在，点击后内部填充） -->
+      <div class="checkmark-spinner-container" id="spinnerCont"></div>
+    </div>
+    <div class="captcha-text">我不是机器人</div>
+    <div class="captcha-logo-area">
+      <div class="recaptcha-logo">
+        <!-- 官方位图 logo（data URI 内嵌，保持单文件） -->
+        <img src="data:image/png;base64,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" alt="reCAPTCHA logo">
+      </div>
+      <div class="recaptcha-text">reCAPTCHA</div>
+    </div>
+  </div>
+</div>
+
+<div class="prank-overlay" id="prankConfirm">
+  <div class="chrome-dialog" id="prankDialog">
+    <div class="chrome-dialog-msg" id="prankQuestion">你确定吗？</div>
+    <div class="chrome-dialog-btns" id="prankButtons">
+      <button class="chrome-btn chrome-btn-secondary" id="prankNo">不确定</button>
+      <button class="chrome-btn chrome-btn-primary" id="prankYes">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="prank-overlay" id="prankMock">
+  <div class="prank-mock">
+    <div class="prank-mock-icon">😂</div>
+    <h2>哈哈哈哈！</h2>
+    <p id="prankMockText">你上当了 :)</p>
+    <button class="chrome-btn prank-continue" id="prankContinue">继续参观 →</button>
+  </div>
+</div>
+
+
+<!-- 假人机验证恶作剧 HTML 结束 -->
 </body>
 </html>
